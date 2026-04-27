@@ -1,0 +1,1843 @@
+---
+output: 
+  pdf_document:
+    toc: false
+    toc_depth: 2
+    number_sections: true
+    latex_engine: pdflatex
+    keep_tex: false
+bibliography: bibliografia.bib
+link-citations: yes 
+geometry: "left=3cm,right=2.5cm,top=2.5cm,bottom=2.5cm"
+fontsize: 11pt
+lang: es-ES
+header-includes:
+  - \usepackage{setspace}
+  - \usepackage{indentfirst}
+  - \usepackage{amsmath}
+  - \usepackage{amsfonts}
+  - \usepackage{amssymb}
+  - \usepackage{amsthm}
+  - \usepackage{graphicx}
+  - \usepackage{float}
+  - \usepackage{titlesec}
+  - \titleformat{\chapter}[display]{\normalfont\huge\bfseries\centering}{\chaptertitlename\ \thechapter}{15pt}{\Huge}
+  - \usepackage{fancyhdr}
+  - \pagestyle{fancy}
+  - \fancyhead{}
+  - \fancyhead[L]{\nouppercase{\leftmark}}
+  - \fancyhead[R]{\thepage}
+  - \setlength{\headheight}{15pt}
+  - \usepackage{hyperref}
+  - \hypersetup{colorlinks=true, linkcolor=black, urlcolor=blue, citecolor=blue}
+  - \usepackage{verbatim}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  error = FALSE,
+  size = "scriptsize",
+  collapse = TRUE,
+  comment = "#>",
+  strip.white = TRUE,
+  fig.align = "center",
+  out.width = "70%",
+  fig.pos = "H",
+  set.seed(484)
+)
+```
+
+\begin{titlepage}
+
+    \vspace{2cm}
+
+    \centering
+    {\Large Máster en Estadística Aplicada}\\[0.5cm]
+    {\large Departamento de Estadística e Investigación Operativa}\\[0.5cm]
+    {\large Universidad de Granada}
+
+    \vspace{2cm}
+
+    \includegraphics[width=0.5\textwidth]{ugr.png} 
+
+    \vspace{2cm}
+
+    {\large Trabajo fin de máster}\\[1cm]
+    {\large Estimación KDE: fundamentos y aplicaciones}
+
+    \vspace{2cm} 
+
+    {\large Juan Rubio Cobeta}\\[0.5cm]   
+    {\large Granada, \today}
+\end{titlepage}
+
+\newpage
+
+\thispagestyle{empty}
+
+\begin{titlepage}
+    \centering
+
+    \vspace{0.5cm}
+
+    {\large Máster en Estadística Aplicada}\\[0.5cm]
+    {\large Departamento de Estadística e Investigación Operativa}\\[0.5cm]
+    {\large Universidad de Granada}
+
+    \vspace{2cm}
+
+    \includegraphics[width=0.4\textwidth]{ugr.png} 
+
+    \vspace{2cm}
+
+    \begin{center}
+    \textbf{Trabajo de investigación presentado por Don Juan Rubio Cobeta y dirigido por la profesora Dña. María Dolores Martínez Miranda.}
+    \end{center}
+
+    \vspace{2cm}
+
+    \begin{center}
+        VºBº
+    \end{center}
+
+    \vspace{2cm}
+
+    \begin{minipage}{0.45\textwidth}
+        \centering
+        \vspace{0.5cm}
+        \textbf{María Dolores Martínez Miranda}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.45\textwidth}
+        \centering
+        \vspace{0.5cm}
+        \textbf{Juan Rubio Cobeta}
+    \end{minipage}
+\end{titlepage}
+
+\newpage
+
+\tableofcontents
+
+\newpage
+
+\pagenumbering{arabic} 
+
+
+# Introducción y Motivación {#capitulo1}
+
+## Contexto y Justificación
+
+La inferencia estadística constituye el pilar fundamental para la extracción de conocimiento a partir de datos empíricos. En el contexto del Máster en Estadística Aplicada de la Universidad de Granada, este trabajo aborda uno de los problemas centrales de la disciplina: la estimación de la función de densidad de probabilidad $f(x)$ subyacente a una variable aleatoria, sin imponer restricciones estructurales fuertes sobre su forma funcional.
+
+Tradicionalmente, la estadística clásica ha abordado este problema desde un enfoque paramétrico. Bajo este paradigma, se asume a priori que la verdadera función de densidad pertenece a una familia paramétrica conocida $\mathcal{P} = \{f(x; \theta) : \theta \in \Theta \subseteq \mathbb{R}^p\}$, como las distribuciones Normal, Gamma o Weibull. En tal escenario, el problema de estimación en un espacio funcional de dimensión infinita se reduce drásticamente a la inferencia de un vector de parámetros de dimensión finita $\theta$. Si bien este enfoque proporciona estimadores eficientes bajo la especificación correcta del modelo, presenta una debilidad crítica: su rigidez estructural. La complejidad de los fenómenos estocásticos reales raramente se ajusta con precisión a estas formas analíticas ideales. La imposición de una estructura paramétrica incorrecta introduce un sesgo de especificación sistemático que no se desvanece asintóticamente, lo que puede invalidar cualquier inferencia posterior al ocultar características locales relevantes como asimetrías o colas pesadas.
+
+Como alternativa natural a esta limitación surge la estadística no paramétrica y, de forma destacada, los métodos de suavizado. La filosofía subyacente radica en permitir que los datos revelen su propia estructura (enfoque guiado por los datos o \emph{data-driven}), delegando en la propia muestra empírica la determinación de la topología de la densidad estimada $\hat{f}(x)$.
+
+Históricamente, el histograma ha representado la herramienta precursora en la estimación no paramétrica de densidades. A pesar de su ubicuidad exploratoria, el histograma exhibe deficiencias analíticas severas que limitan su aplicabilidad teórica y práctica:
+
+1. Produce estimaciones discontinuas (funciones escalonadas), lo que imposibilita la aplicación de herramientas de cálculo diferencial para el análisis de características morfológicas, tales como puntos de inflexión o modas locales.
+2. Su forma depende de manera crítica de los hiperparámetros de la malla: la elección del origen de la partición y la amplitud de los intervalos.
+3. Presenta tasas de convergencia subóptimas y sufre de una degradación severa de eficiencia en espacios de alta dimensión.
+
+Para mitigar estas deficiencias analíticas, @rosenblatt1956 y @parzen1962 formalizaron el estimador de densidad tipo núcleo (KDE, por sus siglas en inglés). Este estimador generaliza y refina la concepción del histograma al convolucionar la función de distribución empírica con una función de ponderación regular (el núcleo o \emph{kernel}). De este modo, distribuye una masa de probabilidad de forma suave alrededor de cada observación, garantizando una estimación continua, diferenciable y que integra a la unidad.
+
+## Motivación Práctica
+
+La relevancia de estudiar el estimador de densidad tipo núcleo trasciende el interés puramente teórico; su aplicación resulta crítica en escenarios donde la detección de desviaciones estructurales respecto a la hipótesis de normalidad es vital para una gestión de riesgos rigurosa. Este trabajo toma como caso de estudio empírico el índice Standard \& Poor's 500 (S\&P 500), considerado el barómetro de referencia del mercado bursátil global.
+
+Uno de los hechos estilizados más documentados en la econometría financiera es que la distribución empírica de los log-rendimientos de los activos difiere significativamente de la distribución normal: presenta colas pesadas (\emph{leptocurtosis}) y asimetrías (\emph{skewness}) que los modelos gaussianos estándar subestiman por construcción. Ignorar estas características topológicas, especialmente durante periodos de crisis financiera, conduce a una subestimación sistemática del riesgo asociado a la ocurrencia de eventos extremos (fenómenos estocásticos conocidos como \emph{cisnes negros}).
+
+La adopción de enfoques no paramétricos, como el KDE, permite capturar la verdadera morfología de la distribución subyacente de los rendimientos del S\&P 500 sin imponer restricciones paramétricas a priori. Esta flexibilidad analítica resulta fundamental para:
+
+1. Cálculo de métricas de riesgo: Proporcionar estimaciones más robustas y precisas de los cuantiles extremos, mejorando la evaluación de medidas clave en las colas de la distribución como el Valor en Riesgo (VaR) y el Déficit Esperado (\emph{Expected Shortfall}).
+2. Detección de regímenes de mercado: Identificar variaciones dinámicas en la densidad de los rendimientos, tales como la aparición de multimodalidad (forma bimodal) o el incremento de la dispersión (aplanamiento) en periodos de alta volatilidad; comportamientos estructurales que un modelo paramétrico estático es incapaz de revelar.
+
+La aplicación práctica desarrollada en este trabajo empírico [(Capítulo 7)](#capitulo7) ilustrará cómo el estimador KDE proporciona una caracterización superior de la dinámica del mercado en contraposición al ajuste paramétrico gaussiano tradicional.
+
+## Objetivos y Estructura del Trabajo
+
+El objetivo principal de este Trabajo Fin de Máster es presentar una revisión teórica rigurosa y autocontenida de la estimación de densidad tipo núcleo, analizando sus propiedades asintóticas, el problema fundamental de la selección del ancho de banda y su aplicación a series financieras empíricas.
+
+Para garantizar un desarrollo lógico y estructurado, la memoria se organiza en los siguientes capítulos:
+
+* [Capítulo 2](#capitulo2): Se establecen los preliminares probabilísticos, fijando la notación y fundamentando los conceptos de convergencia estocástica e integración necesarios para el análisis asintótico posterior.
+* [Capítulo 3](#capitulo3): Se dedica a la construcción formal del estimador de densidad tipo núcleo univariante, definiendo los requisitos analíticos exigibles a la función núcleo $K$ y presentando sus familias paramétricas habituales.
+* [Capítulo 4](#capitulo4): Aborda las propiedades estadísticas asintóticas del estimador. Se deriva la descomposición del Error Cuadrático Integrado Medio (MISE) en sus componentes de sesgo y varianza, formalizando el equilibrio (\emph{trade-off}) existente entre ambos.
+* [Capítulo 5](#capitulo5): Trata el problema central en la implementación práctica del KDE: la selección del parámetro de suavizado o ancho de banda ($h$). Se analizan métodos de optimización paramétrica, como la regla de referencia de Silverman, y aproximaciones guiadas por los datos, como la validación cruzada por mínimos cuadrados (LSCV).
+* [Capítulo 6](#capitulo6): Extiende la formulación teórica y las propiedades estadísticas del estimador al espacio multivariante en $\mathbb{R}^d$, introduciendo las matrices de anchos de banda.
+* [Capítulo 7](#capitulo7): Desarrolla la aplicación empírica sobre los log-rendimientos del índice S\&P 500. Se contrastará la estimación de su densidad subyacente bajo distintos selectores de ancho de banda, evaluando la utilidad del estimador en la captura de colas pesadas y asimetrías.
+* [Capítulo 8](#capitulo8): Sintetiza las conclusiones metodológicas principales derivadas de la investigación y propone posibles líneas de trabajo futuro.
+
+\newpage 
+
+# Preliminares {#capitulo2}
+
+El objetivo del presente capítulo es establecer el marco matemático y la notación que sustentarán el desarrollo teórico de este trabajo. Dado que la estimación de densidad tipo núcleo se fundamenta en las propiedades asintóticas de sumas de variables aleatorias, es fundamental definir con rigor la estructura de los espacios de probabilidad y los modos de convergencia estocástica implicados.
+
+## Fundamentos de Probabilidad
+
+Comenzamos formalizando el espacio de medida sobre el cual se modelan los fenómenos estocásticos.
+
+\vspace{0.3cm}
+\noindent \textsc{Definición 2.1} \emph{(Espacio de Probabilidad)}. Un espacio de probabilidad se define como una terna $(\Omega, \mathcal{F}, \mathbb{P})$, donde:
+\begin{enumerate}
+  \item $\Omega$ representa el \emph{espacio muestral}, un conjunto no vacío que agrupa todos los resultados elementales posibles del experimento.
+  \item $\mathcal{F}$ es una \emph{$\sigma$-álgebra} sobre $\Omega$, definida como una familia de subconjuntos de $\Omega$ que satisface:
+  \begin{itemize}
+    \item $\Omega \in \mathcal{F}$.
+    \item Si $A \in \mathcal{F}$, entonces su complementario $A^c \in \mathcal{F}$.
+    \item Si $\{A_n\}_{n=1}^{\infty}$ es una sucesión en $\mathcal{F}$, entonces $\bigcup_{n=1}^{\infty} A_n \in \mathcal{F}$.
+  \end{itemize}
+  \item $\mathbb{P}: \mathcal{F} \to [0, 1]$ es una \emph{medida de probabilidad} que cumple $\mathbb{P}(\Omega) = 1$ y es $\sigma$-aditiva para sucesiones de conjuntos mutuamente disjuntos.
+\end{enumerate}
+\vspace{0.3cm}
+
+En el marco de la inferencia estadística, es preciso trasladar la incertidumbre desde el espacio abstracto $\Omega$ al espacio euclídeo medible.
+
+\vspace{0.3cm}
+\noindent \textsc{Definición 2.2} \emph{(Variable Aleatoria Real)}. Dado un espacio de probabilidad $(\Omega, \mathcal{F}, \mathbb{P})$, una función $X: \Omega \to \mathbb{R}$ se denomina \emph{variable aleatoria} si es $\mathcal{F}/\mathcal{B}(\mathbb{R})$-medible; es decir, si para todo conjunto de Borel $B \in \mathcal{B}(\mathbb{R})$ (la $\sigma$-álgebra generada por los conjuntos abiertos de $\mathbb{R}$), se verifica que la preimagen satisface $X^{-1}(B) \in \mathcal{F}$.
+\vspace{0.3cm}
+
+Toda variable aleatoria induce una medida de probabilidad sobre $(\mathbb{R}, \mathcal{B}(\mathbb{R}))$, la cual queda caracterizada de forma unívoca a través de su función de distribución acumulada.
+
+\vspace{0.3cm}
+\noindent \textsc{Definición 2.3} \emph{(Función de Distribución)}. La función de distribución $F: \mathbb{R} \to [0, 1]$ asociada a una variable aleatoria $X$ se define como:
+$$F(x) = \mathbb{P}(X \le x) = \mathbb{P}(\{\omega \in \Omega : X(\omega) \le x\}), \quad \forall x \in \mathbb{R}$$
+Esta función posee las propiedades analíticas de ser monótona no decreciente, continua por la derecha, y cumple las condiciones límite $\lim\limits_{x \to -\infty} F(x) = 0$ y $\lim\limits_{x \to \infty} F(x) = 1$.
+\vspace{0.3cm}
+
+En el presente trabajo, el análisis se restringirá exclusivamente a variables aleatorias absolutamente continuas. Formalmente, esto implica que la medida inducida por $X$ es absolutamente continua con respecto a la medida de Lebesgue $\mu$ sobre $\mathbb{R}$. En virtud del Teorema de Radon-Nikodym [@billingsley1995], esta condición de absoluta continuidad garantiza la existencia de una función de densidad.
+
+\vspace{0.3cm}
+\noindent \textsc{Definición 2.4} \emph{(Función de Densidad de Probabilidad)}. Se dice que una variable aleatoria $X$ admite una función de densidad de probabilidad $f$, si existe una función no negativa e integrable tal que para todo conjunto de Borel $B \in \mathcal{B}(\mathbb{R})$ se verifica:
+$$\mathbb{P}(X \in B) = \int_{B} f(t) \, dt$$
+Como corolario inmediato, la relación funcional entre la distribución acumulada y la densidad se expresa mediante la integral:
+$$F(x) = \int_{-\infty}^{x} f(t) \, dt$$
+Adicionalmente, si la densidad $f$ es continua en un punto $x$, el Teorema Fundamental del Cálculo garantiza que la función de distribución es diferenciable en dicho punto, verificándose:
+$$f(x) = F'(x) = \frac{d}{dx} F(x)$$
+\vspace{0.3cm}
+
+El problema paradigmático de la estimación de densidad no paramétrica consiste, precisamente, en inferir esta función $f$ subyacente a partir de una realización muestral $X_1, \dots, X_n$ distribuida según $F$.
+
+## Momentos
+
+Una vez definida la función de densidad de probabilidad, las características numéricas más relevantes de una variable aleatoria son sus momentos. Estos valores resumen la información estructural contenida en la densidad, describiendo aspectos fundamentales como la localización, la dispersión o la asimetría de la distribución. En el contexto de la estimación tipo núcleo, el cálculo de esperanzas y varianzas sobre transformaciones de la variable aleatoria constituirá la herramienta analítica primordial para evaluar las propiedades asintóticas del estimador $\hat{f}$.
+
+\vspace{0.3cm}
+\noindent \textsc{Definición 2.5} \emph{(Esperanza Matemática)}. Sea $X$ una variable aleatoria absolutamente continua con función de densidad $f$. Se define la \emph{esperanza matemática} (o valor esperado) de $X$, denotada por $\mathbb{E}[X]$ o $\mu$, como la integral de Lebesgue:
+$$\mathbb{E}[X] = \int_{\mathbb{R}} x f(x) \, dx$$
+siempre que la integral sea absolutamente convergente, es decir, $\int_{-\infty}^{\infty} |x| f(x) \, dx < \infty$. En caso de no cumplirse esta condición de integrabilidad, se establece que la esperanza no existe.
+\vspace{0.3cm}
+
+El operador esperanza es lineal. Dadas dos variables aleatorias $X, Y$ definidas sobre el mismo espacio de probabilidad y constantes escalares $a, b \in \mathbb{R}$, se verifica que:
+$$\mathbb{E}[aX + bY] = a\mathbb{E}[X] + b\mathbb{E}[Y]$$
+
+Para el desarrollo analítico del estimador núcleo, el interés principal no recae sobre $\mathbb{E}[X]$, sino en la esperanza de transformaciones no lineales de $X$ (específicamente, la función núcleo $K$ evaluada iterativamente sobre la muestra). El siguiente resultado, conocido como la Ley del Estadístico Inconsciente, permite calcular dicha esperanza operando directamente sobre la densidad original $f$.
+
+
+
+\vspace{0.3cm}
+\noindent \phantomsection \textsc{Teorema 2.1} \label{teo:teoremaesperanza} \emph{(Esperanza de una función de una variable aleatoria)}. Sea $g: \mathbb{R} \to \mathbb{R}$ una función Borel-medible. Si $X$ es una variable aleatoria con densidad $f$, entonces:
+$$\mathbb{E}[g(X)] = \int_{-\infty}^{\infty} g(x) f(x) \, dx$$
+siempre que se verifique la finitud de $\mathbb{E}[|g(X)|] < \infty$.
+\vspace{0.3cm}
+
+\vspace{0.3cm}
+\noindent \textsc{Definición 2.6} \emph{(Varianza y Momentos Superiores)}. La \emph{varianza} de una variable aleatoria $X$, denotada por $\mathbb{V}(X)$ o $\sigma^2$, constituye una medida de dispersión cuadrática respecto a su media. Se define formalmente como el segundo momento central:
+$$\mathbb{V}(X) = \mathbb{E}\left[ (X - \mathbb{E}[X])^2 \right] = \int_{-\infty}^{\infty} (x - \mu)^2 f(x) \, dx$$
+Desarrollando el cuadrado del binomio y aplicando la linealidad de la esperanza, se obtiene la expresión operativa habitual:
+$$\mathbb{V}(X) = \mathbb{E}[X^2] - (\mathbb{E}[X])^2$$
+\vspace{0.3cm}
+
+De forma general, se define el \emph{$k$-ésimo momento} respecto al origen como $\mu'_k = \mathbb{E}[X^k]$, y el \emph{$k$-ésimo momento central} como $\mu_k = \mathbb{E}[(X-\mu)^k]$. La varianza se corresponde analíticamente con $\mu_2$.
+
+\vspace{0.3cm}
+\noindent \textsc{Propiedades de la Varianza}
+\begin{enumerate}
+  \item No negatividad: $\mathbb{V}(X) \ge 0$.
+  \item Invarianza topológica por traslación y homogeneidad cuadrática: Para constantes $a, b \in \mathbb{R}$, se cumple que $\mathbb{V}(aX + b) = a^2 \mathbb{V}(X)$.
+  \item Aditividad bajo incorrelación: Si $X_1, \dots, X_n$ son variables aleatorias independientes (o incorreladas) dos a dos, la varianza de la suma equivale a la suma de las varianzas individuales:
+  $$\mathbb{V}\left( \sum_{i=1}^n X_i \right) = \sum_{i=1}^n \mathbb{V}(X_i)$$
+\end{enumerate}
+\vspace{0.3cm}
+
+Esta última propiedad es un pilar fundamental para derivar la varianza asintótica del estimador KDE, ya que este se construye algorítmicamente como una suma lineal ponderada de variables aleatorias independientes e idénticamente distribuidas.
+
+\noindent \phantomsection \textsc{Teorema 2.2} \label{teo:teoremacambiovariable} \emph{(Teorema del Cambio de Variable)}. Una herramienta fundamental para la evaluación de integrales en estadística es la fórmula de sustitución. Sea $\phi: \mathbb{R} \to \mathbb{R}$ un difeomorfismo de clase $\mathcal{C}^1$ (una función biyectiva, diferenciable y con inversa diferenciable). Entonces, para cualquier función integrable $f$, se cumple:
+$$\int_{\mathbb{R}} f(\phi(u)) |\phi'(u)| \, du = \int_{\mathbb{R}} f(x) \, dx$$
+
+\vspace{0.3cm}
+\noindent En el contexto de la teoría de probabilidad, este resultado es indispensable para trabajar con familias de localización-escala. En particular, al aplicar una transformación afín $y = a u + b$ (con $a > 0$), la integral se reescribe de forma exacta relacionando los diferenciales mediante $dy = a \, du$. Esta propiedad de invarianza permite estandarizar variables aleatorias y simplificar el cálculo de esperanzas matemáticas sin alterar la masa total de probabilidad.
+
+## Convergencia Estocástica y Notación de Orden Estocástico
+
+El comportamiento del estimador de densidad tipo núcleo depende intrínsecamente del tamaño muestral $n$. Para analizar sus propiedades asintóticas, es decir, su comportamiento en el límite cuando $n \to \infty$, resulta imprescindible formalizar los criterios analíticos bajo los cuales las aproximaciones estocásticas convergen hacia sus correspondientes valores teóricos poblacionales.
+
+Sea $\{X_n\}_{n=1}^{\infty}$ una sucesión de variables aleatorias y $X$ una variable aleatoria, asumiéndose en primera instancia que todas ellas están definidas sobre un mismo espacio de probabilidad $(\Omega, \mathcal{F}, \mathbb{P})$.
+
+### Modos de Convergencia
+
+Se distinguen tres modos principales de convergencia estocástica, los cuales se ordenan de forma jerárquica en función del grado de exigencia sobre la topología probabilística subyacente.
+
+\vspace{0.3cm}
+\noindent \textsc{Definición 2.7} \emph{(Convergencia Casi Segura)}. Se dice que la sucesión $\{X_n\}$ converge \emph{casi seguramente} (o con probabilidad 1) a $X$, denotado por $X_n \xrightarrow{c.s.} X$, si el conjunto de sucesos elementales donde la sucesión no converge tiene medida de probabilidad nula. Formalmente:
+$$\mathbb{P}\left( \left\{ \omega \in \Omega : \lim_{n \to \infty} X_n(\omega) = X(\omega) \right\} \right) = 1$$
+Esta representa la forma más estricta de convergencia estocástica clásica. En el contexto de la teoría de la estimación, si un estimador $\hat{\theta}_n$ satisface $\hat{\theta}_n \xrightarrow{c.s.} \theta$, se clasifica como un estimador fuertemente consistente.
+\vspace{0.3cm}
+
+\vspace{0.3cm}
+\noindent \textsc{Definición 2.8} \emph{(Convergencia en Probabilidad)}. La sucesión $\{X_n\}$ converge \emph{en probabilidad} a $X$, denotado por $X_n \xrightarrow{p} X$, si para todo escalar $\epsilon > 0$, la probabilidad de que la distancia absoluta entre $X_n$ y $X$ exceda dicho umbral se desvanece asintóticamente:
+$$\lim_{n \to \infty} \mathbb{P}(|X_n - X| > \epsilon) = 0$$
+Esta condición asegura la consistencia débil de un estimador. Constituye una exigencia analítica más relajada que la convergencia casi segura, al permitir la ocurrencia de discrepancias significativas siempre que la medida de probabilidad asociada a estos eventos atípicos converja a cero en el límite asintótico.
+\vspace{0.3cm}
+
+\vspace{0.3cm}
+\noindent \textsc{Definición 2.9} \emph{(Convergencia en Distribución)}. Sean $F_n$ y $F$ las funciones de distribución acumuladas asociadas a $X_n$ y $X$, respectivamente. Se establece que $X_n$ converge en distribución (o en ley) a $X$, denotado por $X_n \xrightarrow{d} X$, si:
+$$\lim_{n \to \infty} F_n(x) = F(x)$$
+para todo punto $x \in \mathbb{R}$ en el cual la función límite $F$ sea continua.
+
+A diferencia de los modos anteriores, la convergencia en distribución no exige que las variables aleatorias estén definidas sobre el mismo espacio de probabilidad, dado que el límite opera exclusivamente sobre el espacio de las leyes de medida. Esta noción constituye el pilar fundamental para la inferencia asintótica, posibilitando, por ejemplo, la construcción de intervalos de confianza mediante el Teorema Central del Límite.
+\vspace{0.3cm}
+
+\vspace{0.3cm}
+\noindent \textsc{Teorema 2.3} \emph{(Jerarquía y Relaciones de Convergencia)}. Las implicaciones analíticas entre los distintos modos de convergencia estocástica se rigen por la siguiente cadena lógica:
+$$X_n \xrightarrow{c.s.} X \implies X_n \xrightarrow{p} X \implies X_n \xrightarrow{d} X$$
+En general, las implicaciones inversas no se verifican. La única excepción destacable ocurre cuando la variable límite $X$ es una constante degenerada ($X = c$ casi seguramente), escenario en el cual la convergencia en distribución implica la convergencia en probabilidad ($X_n \xrightarrow{d} c \implies X_n \xrightarrow{p} c$).
+\vspace{0.3cm}
+
+Para operar algebraicamente con límites estocásticos y simplificar el tratamiento de los términos residuales en el análisis asintótico, se enuncian a continuación dos resultados fundamentales.
+
+\vspace{0.3cm}
+\noindent \textsc{Teorema 2.4} \emph{(Teorema de la Aplicación Continua y Lema de Slutsky)}. Sea $g: \mathbb{R} \to \mathbb{R}$ una función continua.
+\begin{enumerate}
+  \item \emph{Teorema de la Aplicación Continua:}
+  \begin{itemize}
+    \item Si $X_n \xrightarrow{p} X$, entonces $g(X_n) \xrightarrow{p} g(X)$.
+    \item Si $X_n \xrightarrow{d} X$, entonces $g(X_n) \xrightarrow{d} g(X)$.
+  \end{itemize}
+  \item \emph{Lema de Slutsky:} Si $X_n \xrightarrow{d} X$ e $Y_n \xrightarrow{p} c$, donde $c$ es una constante real, entonces se verifican las siguientes propiedades algebraicas:
+  $$X_n + Y_n \xrightarrow{d} X + c, \quad X_n Y_n \xrightarrow{d} cX, \quad \text{y} \quad \frac{X_n}{Y_n} \xrightarrow{d} \frac{X}{c} \quad (\text{si } c \neq 0)$$
+\end{enumerate}
+\vspace{0.3cm}
+
+### Notación de Orden Estocástica ($o_p$ y $O_p$) 
+
+En el análisis asintótico del estimador de densidad tipo núcleo, el error de estimación se descompone habitualmente en términos principales dominantes y términos residuales de desvanecimiento rápido. Para formalizar analíticamente la tasa de convergencia de dichos términos, resulta preceptivo generalizar la notación clásica de Landau ($o$ y $\mathcal{O}$) al contexto estocástico [@garcia2025]. Sea $\{X_n\}_{n=1}^{\infty}$ una sucesión de variables aleatorias y $\{a_n\}_{n=1}^{\infty}$ una sucesión determinista de constantes reales estrictamente positivas. \vspace{0.3cm}
+
+\noindent \textsc{Definición 2.10} \emph{(Orden "$o$" pequeña en probabilidad)}. Se denota $X_n = o_p(a_n)$ si el cociente $X_n / a_n$ converge en probabilidad a cero: $$X_n = o_p(a_n) \iff \frac{X_n}{a_n} \xrightarrow{p} 0$$ Intuitivamente, esta condición establece que la sucesión $\{X_n\}$ posee un orden de magnitud estocástico estrictamente inferior a $a_n$ en el límite asintótico. Un caso de especial relevancia práctica es $X_n = o_p(1)$, condición analíticamente equivalente a la convergencia en probabilidad hacia una constante nula, $X_n \xrightarrow{p} 0$. \vspace{0.3cm}
+
+\vspace{0.3cm}
+\noindent \textsc{Definición 2.11} \emph{(Orden "$O$" grande en probabilidad)}. Se denota $X_n = O_p(a_n)$ si la sucesión cociente $X_n / a_n$ se encuentra \emph{acotada en probabilidad}. De forma rigurosa, esto exige que para cualquier nivel de significación $\epsilon > 0$, exista una constante real finita $M_\epsilon > 0$ y un índice natural $N_\epsilon \in \mathbb{N}$ tales que: $$\mathbb{P}\left( \left| \frac{X_n}{a_n} \right| > M_\epsilon \right) < \epsilon, \quad \forall n \ge N_\epsilon$$ En el escenario donde $X_n = O_p(1)$, se afirma que la sucesión es estocásticamente acotada [@garcia2025]. Resulta pertinente señalar que toda sucesión de variables aleatorias que converja en distribución satisface automáticamente la condición $O_p(1)$ (en virtud del Teorema de Prohorov [@billingsley1995]), estableciéndose la implicación lógica $X_n \xrightarrow{d} X \implies X_n = O_p(1)$. \vspace{0.3cm}
+
+\vspace{0.3cm}
+\noindent \textsc{Álgebra de Órdenes Estocásticos:} La adopción de esta notación asintótica simplifica de manera sustancial las demostraciones algebraicas, al facilitar la absorción de términos de orden inferior. Las reglas operativas fundamentales, análogas al cálculo determinista, se enuncian a continuación: \begin{enumerate}
+  \item $o_p(1) + o_p(1) = o_p(1)$ \item $O_p(1) + o_p(1) = O_p(1)$ \item $O_p(1) \cdot o_p(1) = o_p(1)$ \item Si $X_n = O_p(n^{-\alpha})$ y $Y_n = O_p(n^{-\beta})$, entonces $X_n Y_n = O_p(n^{-(\alpha+\beta)})$. \end{enumerate}
+\vspace{0.3cm}
+
+## Herramientas de Análisis y Aproximación
+
+El análisis de las propiedades asintóticas del estimador núcleo se fundamenta en aproximaciones analíticas locales de la verdadera función de densidad $f$. Para garantizar la validez matemática de dichas aproximaciones, se requiere restringir el espacio de funciones admisibles y disponer de las herramientas de cálculo necesario para cuantificar el error de truncamiento.
+
+### Condiciones de Regularidad
+
+La tasa de convergencia del estimador KDE depende de forma explícita de la regularidad analítica (suavidad) de la densidad subyacente. Este concepto topológico se formaliza mediante las clases de diferenciabilidad.
+
+\vspace{0.3cm}
+\noindent \textsc{Definición 2.12} \emph{(Espacio de Funciones $\mathcal{C}^k$)}. Sea $I \subseteq \mathbb{R}$ un intervalo abierto. Se define el espacio funcional $\mathcal{C}^k(I)$ como el conjunto de funciones $g: I \to \mathbb{R}$ que admiten $k$ derivadas continuas en $I$. 
+\vspace{0.3cm}
+
+En particular, a lo largo de este trabajo se asumirá habitualmente que la densidad poblacional satisface $f \in \mathcal{C}^2(\mathbb{R})$ y que su segunda derivada $f''$ es uniformemente acotada y cuadrado-integrable (perteneciente al espacio $L^2(\mathbb{R})$). Esta asunción de regularidad es una condición analítica necesaria para asegurar que la curvatura de la densidad esté bien definida en todo el dominio continuo.
+
+### Desarrollo de Taylor
+
+La herramienta metodológica fundamental para el análisis local de funciones diferenciables es la expansión en serie de Taylor. Para estudiar el comportamiento de una función $f$ en un entorno de $x$, es necesario aproximar su valor en un punto perturbado $x + \epsilon$ en términos de $f(x)$ y sus derivadas sucesivas cuando la perturbación $\epsilon$ tiende a cero.
+
+\vspace{0.3cm}
+\noindent \textsc{Teorema 2.5} \emph{(Teorema de Taylor con resto de Peano)} \label{teo:teoremataylor}. Sea $g \in \mathcal{C}^k(\mathbb{R})$ una función definida en un entorno abierto del punto $x$. Para un incremento $t$ suficientemente próximo a cero, se verifica la siguiente expansión polinómica:
+$$g(x + t) = g(x) + g'(x)t + \frac{g''(x)}{2!}t^2 + \dots + \frac{g^{(k)}(x)}{k!}t^k + o(|t|^k)$$
+donde el término residual en forma de Peano, $o(|t|^k)$, satisface la condición de desvanecimiento $\lim\limits_{t \to 0} \frac{o(|t|^k)}{|t|^k} = 0$.
+\vspace{0.3cm}
+
+En el marco analítico del KDE, este teorema se aplica considerando el incremento $t = -hu$. Bajo la hipótesis de regularidad estructural $f \in \mathcal{C}^2$, la expansión polinómica hasta el orden cuadrático se formula como:
+$$f(x - hu) = f(x) - h u f'(x) + \frac{1}{2} h^2 u^2 f''(x) + o(h^2)$$
+Esta identidad analítica constituye el pilar fundamental que permitirá demostrar de forma rigurosa en el ([Capítulo 4](#capitulo4)) que el sesgo principal del estimador es de orden determinista $O(h^2)$ con respecto al ancho de banda.
+
+### Convolución
+
+Finalmente, cabe destacar que el estimador de densidad no paramétrico puede interpretarse, desde la perspectiva del análisis funcional, como un operador de convolución lineal espacial.
+
+\vspace{0.3cm}
+\noindent \textsc{Definición 2.13} \emph{(Convolución)}. Dadas dos funciones $f, g: \mathbb{R} \to \mathbb{R}$ integrables en el sentido de Lebesgue (pertenecientes al espacio $L^1(\mathbb{R})$), se define su \emph{convolución}, denotada por el operador $(f * g)(x)$, como la integral:
+$$(f * g)(x) = \int_{-\infty}^{\infty} f(y) g(x - y) \, dy$$
+\vspace{0.3cm}
+
+\newpage
+
+# El Estimador de Densidad Tipo Núcleo {#capitulo3}
+
+## Motivación: Del Histograma al estimador \emph{naive}
+
+La construcción del estimador de densidad tipo núcleo surge como una evolución analítica natural, motivada por la necesidad de superar las deficiencias estructurales inherentes al histograma clásico. Si bien el histograma representa la herramienta de exploración de datos por excelencia, su formulación matemática presenta limitaciones que restringen severamente su validez para la inferencia estadística avanzada.
+
+Consideremos una muestra aleatoria simple $X_1, \dots, X_n$ procedente de una población con función de densidad $f$ desconocida. El histograma clásico se construye definiendo una partición del soporte en intervalos mutuamente excluyentes $B_j$ de amplitud constante $h$, y evaluando la frecuencia relativa de observaciones en cada subconjunto. Formalmente, para un punto de evaluación $x \in B_j$, el estimador se define como:
+
+$$\hat{f}_H(x) = \frac{1}{nh} \sum_{i=1}^n \mathbb{I}(X_i \in B_j)$$
+
+Este estimador presenta dos patologías teóricas fundamentales:
+
+1. Discontinuidad: El estimador $\hat{f}_H$ es una función escalonada, presentando discontinuidades de salto en las fronteras de los intervalos. Esta falta de regularidad topológica imposibilita la aplicación de operadores diferenciales sobre la densidad estimada, impidiendo el análisis de características morfológicas clave como los puntos de inflexión o la estimación de la curvatura.
+
+2. Dependencia de la malla: La topología final del histograma es altamente sensible a la elección arbitraria del punto de origen de la partición $x_0$. Consecuentemente, el análisis de una misma muestra puede divergir significativamente ante traslaciones mínimas de la rejilla espacial.
+
+Con el propósito de mitigar la arbitrariedad introducida por la malla de partición, @rosenblatt1956 propuso relajar la restricción espacial de los intervalos fijos. La intuición subyacente radica en construir una vecindad simétrica de amplitud $2h$ centrada dinámicamente en cada punto de evaluación $x$, en lugar de forzar a la variable a pertenecer a una clase estática predefinida.
+
+Analíticamente, este enfoque se fundamenta en la definición límite de la función de densidad poblacional como la derivada de la distribución acumulada $F$:
+
+$$f(x) = F'(x) = \lim_{h \to 0} \frac{F(x+h) - F(x-h)}{2h}$$
+
+Al aproximar la distribución teórica $F$ mediante la función de distribución empírica $F_n(x) = \frac{1}{n}\sum_{i=1}^n \mathbb{I}(X_i \le x)$, se deduce el denominado estimador (\emph{naive}):
+
+$$\hat{f}_{Naive}(x) = \frac{F_n(x+h) - F_n(x-h)}{2h} = \frac{1}{2nh} \# \{ X_i : x-h < X_i \le x+h \}$$
+
+Esta formulación admite una reescritura mediante la introducción de una función de ponderación o núcleo auxiliar $w(u)$:
+
+$$\hat{f}_{Naive}(x) = \frac{1}{nh} \sum_{i=1}^n w\left( \frac{x - X_i}{h} \right), \quad \text{donde } w(u) = \frac{1}{2}\mathbb{I}(|u| \le 1)$$
+
+El \emph{estimador ingenuo} solventa el problema de la dependencia del origen, pero no resuelve la carencia de suavidad analítica. Puesto que la función indicatriz $w(u)$ presenta una geometría rectangular (asumiendo el valor $1/2$ en el interior del dominio y $0$ en el exterior), el estimador resultante $\hat{f}_{Naive}$ mantiene su estructura de función escalonada. Esto provoca la aparición de saltos discontinuos cada vez que una observación entra o abandona la ventana de evaluación móvil $(x-h, x+h)$.
+
+Para garantizar una estimación analíticamente suave y diferenciable (perteneciente a la clase funcional $\mathcal{C}^\infty$), debemos sustituir la función rectangular discontinua $w(\cdot)$ por una función de ponderación regular $K(\cdot)$ que presente un decaimiento gradual. Esta generalización metodológica constituye la base del estimador de densidad tipo núcleo.
+
+### Ilustración Gráfica {.unnumbered .unlisted}
+
+La transición metodológica descrita se ilustra visualmente a continuación. La Figura \ref{fig:comparacion-estimadores} evidencia la rigidez estructural del histograma debida a sus intervalos fijos, frente al estimador ingenuo que centra la estimación local en la muestra, aunque conservando la rugosidad topológica. Finalmente, la implementación del estimador núcleo (operando con un núcleo Gaussiano) logra recuperar con éxito la regularidad y suavidad subyacentes a la verdadera función de densidad.
+
+```{r comparacion-estimadores, fig.align='center', out.width="100%", fig.height=3.5, fig.width=9, fig.cap="Comparación entre el histograma clásico, el estimador ingenuo y el estimador de densidad tipo núcleo."}
+par(mfrow=c(1, 3), mar=c(4, 4, 3, 1)); n <- 100
+datos <- c(rnorm(n*0.6, 2, 1), rnorm(n*0.4, 6, 1.5)); lx <- c(-2, 11);
+ly <- c(0, 0.25)
+
+hist(datos, breaks=seq(-4, 12, 1), prob=TRUE, main="(a) Histograma",
+xlab="x", col="gray90", border="gray40", xlim=lx, ylim=ly)
+
+plot(density(datos, kernel="rectangular", bw=0.6), main="(b) Estimador naive", 
+xlab="x", ylab="Densidad", col="blue", lwd=2, xlim=lx, ylim=ly, zero.line=FALSE)
+polygon(density(datos, kernel="rectangular", bw=0.6), col=rgb(0,0,1,0.1),
+border="blue")
+
+plot(density(datos, kernel="gaussian", bw=0.6), main="(c) KDE (Gaussiano)",
+xlab="x", ylab="Densidad", col="darkgreen", lwd=2, xlim=lx, ylim=ly,
+zero.line=FALSE)
+polygon(density(datos, kernel="gaussian", bw=0.6), col=rgb(0,0.5,0,0.1),
+border="darkgreen")
+
+par(mfrow=c(1, 1))
+```
+
+## Definición Formal y Propiedades del Núcleo
+
+Tras establecer la intuición geométrica subyacente, se procede a la construcción rigurosa del estimador. La generalización del histograma mediante la introducción de funciones de ponderación regulares fue formalizada de manera independiente por @rosenblatt1956 y @parzen1962, dando lugar a la formulación del objeto analítico central de este estudio: el estimador de Rosenblatt-Parzen.
+
+\textsc{Definición 3.2} \label{def: defestimador} \emph{(Estimador de Densidad Tipo Núcleo Univariante)}. Sea $X_1, X_2, \dots, X_n$ una muestra aleatoria simple (variables independientes e idénticamente distribuidas) procedente de una población absolutamente continua con función de densidad de probabilidad $f$ desconocida. Se define el estimador de densidad tipo núcleo (KDE, por sus siglas en inglés), denotado por $\hat{f}_h(x)$, como:
+
+$$\hat{f}_h(x) = \frac{1}{nh} \sum_{i=1}^{n} K\left( \frac{x - X_i}{h} \right), \quad \forall x \in \mathbb{R}$$
+
+donde:
+
+* $K: \mathbb{R} \to \mathbb{R}$ es la función de ponderación o núcleo (\emph{kernel}).
+* $h > 0$ es el ancho de banda (\emph{bandwidth}) o parámetro de suavizado.
+
+Desde la perspectiva del análisis funcional, este estimador admite una interpretación como la convolución analítica de la función de densidad empírica con el núcleo reescalado. Definiendo la densidad empírica como una combinación lineal de deltas de Dirac, $f_n(x) = \frac{1}{n}\sum_{i=1}^n \delta(x - X_i)$, y el núcleo reescalado espacialmente como $K_h(u) = \frac{1}{h}K(u/h)$, se obtiene la identidad teórica:
+
+$$\hat{f}_h(x) = (f_n * K_h)(x) = \int_{-\infty}^{\infty} K_h(x - t) \, dF_n(t)$$
+
+Esta equivalencia funcional resulta de vital importancia, dado que garantiza la transferencia directa de las propiedades de regularidad topológica del núcleo $K$ a la estimación global $\hat{f}_h$.
+
+### Clase de Funciones Admisibles
+
+Para garantizar que $\hat{f}_h(x)$ constituya un estimador estadísticamente válido de una densidad de probabilidad, la función núcleo $K$ debe satisfacer un conjunto estricto de restricciones analíticas. Se define la clase de funciones admisibles $\mathcal{K}$ a través de las siguientes condiciones de regularidad.
+
+\textsc{Condición 1} \emph{(Normalización e Integrabilidad)}. Para asegurar que la estimación integre a la unidad ($\int_{-\infty}^{\infty} \hat{f}_h(x) \, dx = 1$), el propio núcleo debe estar normalizado como una densidad de probabilidad:
+
+$$\int_{-\infty}^{\infty} K(u) \, du = 1$$
+
+La demostración analítica se deduce de forma trivial por linealidad e integración por sustitución. Partiendo de la integral del estimador:
+
+$$\int_{-\infty}^{\infty} \hat{f}_h(x) \, dx = \frac{1}{n} \sum_{i=1}^n \int_{-\infty}^{\infty} \frac{1}{h} K\left(\frac{x-X_i}{h}\right) \, dx$$
+
+Al aplicar el difeomorfismo $u = (x-X_i)/h$, con diferencial $dx = h \, du$, la integral converge a $\int_{-\infty}^{\infty} K(u) \, du = 1$ para cada uno de los $n$ sumandos muestrales.
+
+\textsc{Condición 2} \emph{(No negatividad)}. Para preservar la condición axiomática $\hat{f}_h(x) \ge 0$ en todo el dominio continuo $x \in \mathbb{R}$, se impone la restricción:
+
+$$K(u) \ge 0, \quad \forall u \in \mathbb{R}$$
+
+Aunque es válido contemplar la existencia de núcleos de orden superior que admiten valores estrictamente negativos con el propósito de acelerar el decaimiento asintótico del sesgo (denominados núcleos de corrección de sesgo), su aplicación genera estimaciones que no constituyen densidades de probabilidad estrictamente válidas. En consecuencia, el presente trabajo se restringirá de forma exclusiva a la familia de núcleos no negativos (conocida habitualmente como la clase $\mathcal{K}_2$).
+
+\textsc{Condición 3} \emph{(Simetría y Centrado)}. Se asume axiomáticamente que $K$ es una función par simétrica en torno al origen:
+
+$$K(u) = K(-u)$$
+
+Esta simetría estructural exige analíticamente que el primer momento del núcleo sea estrictamente nulo (condicionado a su integrabilidad absoluta):
+
+$$\mu_1(K) = \int_{-\infty}^{\infty} u K(u) \, du = 0$$
+
+Dicha propiedad resulta indispensable para garantizar que la distribución de la masa de probabilidad no presente desplazamientos sistemáticos hacia la izquierda o derecha respecto a las observaciones empíricas, neutralizando de este modo la inducción de un sesgo de fase indeseado en la estimación.
+
+\textsc{Condición 4} \emph{(Momentos Finitos)}. Se exige que el núcleo presente una varianza estrictamente positiva y finita. Se define formalmente el segundo momento del núcleo como:
+
+$$\mu_2(K) = \int_{-\infty}^{\infty} u^2 K(u) \, du = \sigma_K^2 > 0$$
+
+Este parámetro escalar $\mu_2(K)$ constituye un factor multiplicativo directo en la expansión del término principal del sesgo asintótico. Un núcleo dotado de mayor dispersión topológica (es decir, mayor $\mu_2(K)$) inducirá un grado de suavizado superior sobre la variabilidad muestral local.
+
+\textsc{Condición 5} \label{con: condicion5} \emph{(Norma $L_2$)}. Para posibilitar el desarrollo analítico de la varianza del estimador, representa una condición estrictamente necesaria que el núcleo sea de cuadrado integrable (es decir, perteneciente al espacio funcional $L^2(\mathbb{R})$). Se define el funcional geométrico de \emph{rugosidad} del núcleo como:
+
+$$R(K) = \int_{-\infty}^{\infty} K(u)^2 \, du = \|K\|_2^2 < \infty$$
+
+Esta magnitud escalar cuantifica la concentración de la densidad de masa de la propia función núcleo. Valores elevados de $R(K)$ caracterizan a funciones de ponderación marcadamente leptocúrticas.
+
+### Herencia de Propiedades de Regularidad
+
+Una de las ventajas analíticas más notables del estimador de densidad tipo núcleo frente al histograma clásico reside en su capacidad para heredar de manera exacta las propiedades topológicas e intrínsecas del núcleo base seleccionado.
+
+\phantomsection \textsc{Teorema 3.1} \label{teo:diferenciabilidad} \emph{(Diferenciabilidad)}. Sea $K \in \mathcal{C}^k(\mathbb{R})$, esto es, un núcleo funcionalmente continuo y provisto de $k$ derivadas continuas. Bajo esta premisa, el estimador asociado $\hat{f}_h(x)$ hereda automáticamente dicha regularidad, logrando pertenecer también a la clase $\mathcal{C}^k(\mathbb{R})$. Su $r$-ésima derivada analítica ($r \le k$) se obtiene de forma directa mediante la expresión:
+
+$$\hat{f}_h^{(r)}(x) = \frac{1}{nh^{r+1}} \sum_{i=1}^{n} K^{(r)}\left( \frac{x - X_i}{h} \right)$$
+
+La trascendencia metodológica de este resultado radica en que la elección de un núcleo de clase $\mathcal{C}^\infty$ (como sucede con el núcleo Gaussiano) genera una estimación de densidad infinitamente diferenciable en todo su dominio. Esto faculta al analista no solo para evaluar la función de densidad primaria, sino para derivar analíticamente sus gradientes y curvaturas locales con un coste computacional estrictamente marginal. Por el contrario, la parametrización basada en núcleos dotados de menor regularidad estructural (tales como el núcleo Triangular, $K \in \mathcal{C}^0$) restringirá la estimación resultante a una función continua, pero con derivadas indefinidas en los vértices muestrales observados.
+
+## Tipos de Funciones Núcleo
+
+Si bien el marco teórico del estimador KDE admite cualquier función de ponderación que satisfaga las condiciones de regularidad de la clase $\mathcal{K}_2$, en la práctica empírica la selección suele restringirse a una familia de funciones paramétricas estándar. La elección funcional del núcleo determina de forma unívoca las propiedades topológicas y de diferenciabilidad de la curva estimada $\hat{f}_h$. No obstante, cabe destacar que su impacto sobre la eficiencia estadística asintótica del estimador resulta ser de segundo orden en comparación con la influencia crítica que ejerce la selección del parámetro de suavizado $h$.
+
+Las expresiones analíticas de los núcleos de uso más frecuente se detallan a continuación. Con la excepción del núcleo Gaussiano, cuyo soporte abarca toda la recta real, el resto de las funciones propuestas presentan un soporte compacto estrictamente definido en el intervalo $[-1, 1]$.
+
+\begin{align*}
+\text{Gaussiano:} & \quad K(u) = \frac{1}{\sqrt{2\pi}} e^{-\frac{1}{2}u^2} \\
+\text{Epanechnikov:} & \quad K(u) = \frac{3}{4}(1 - u^2) \mathbb{I}(|u| \le 1) \\
+\text{Biweight (Cuártico):} & \quad K(u) = \frac{15}{16}(1 - u^2)^2 \mathbb{I}(|u| \le 1) \\
+\text{Rectangular:} & \quad K(u) = \frac{1}{2} \mathbb{I}(|u| \le 1) \\
+\text{Triangular:} & \quad K(u) = (1 - |u|) \mathbb{I}(|u| \le 1) \\
+\text{Coseno:} & \quad K(u) = \frac{\pi}{4} \cos\left(\frac{\pi}{2}u\right) \mathbb{I}(|u| \le 1)
+\end{align*}
+
+La Figura \ref{fig:zoologico-nucleos} ilustra la diversidad morfológica de esta familia de funciones. Mientras que los núcleos Gaussiano y Biweight (\emph{cuártico}) exhiben perfiles estrictamente regulares y suaves (óptimos para la estimación de densidades continuas e infinitamente diferenciables), los núcleos Rectangular y Triangular presentan discontinuidades explícitas en su dominio o en su primera derivada, lo que penaliza su idoneidad en aplicaciones analíticas que exijan la evaluación de gradientes o curvaturas.
+
+```{r zoologico-nucleos, fig.cap="Catálogo de núcleos.", fig.align='center', fig.height=5, fig.width=8}
+par(mfrow=c(2, 3), mar=c(3, 3, 2, 1))
+u <- seq(-1.5, 1.5, length=5000) 
+
+plot_k <- function(x, y, tit, col) {
+  plot(x, y, type="l", lwd=2, col=col, main=tit, ylab="", xlab="", 
+  ylim=c(0, 1), xaxt="n")
+  polygon(c(min(x), x, max(x)), c(0, y, 0), col=adjustcolor(col, 0.2),
+  border=NA)
+  axis(1, at=c(-1, 0, 1), labels=c("-1", "0", "1"), cex.axis=0.8); grid()
+}
+
+y_g <- dnorm(u); plot_k(u, y_g, "Gaussiano", "blue")
+y_e <- ifelse(abs(u)<=1, 0.75*(1-u^2), 0); 
+    plot_k(u, y_e, "Epanechnikov", "red")
+y_b <- ifelse(abs(u)<=1, (15/16)*(1-u^2)^2, 0); 
+    plot_k(u, y_b, "Biweight", "darkorange")
+y_r <- ifelse(abs(u)<=1, 0.5, 0); plot_k(u, y_r, "Rectangular", "darkgreen")
+y_t <- ifelse(abs(u)<=1, 1-abs(u), 0); plot_k(u, y_t, "Triangular", "purple")
+y_c <- ifelse(abs(u)<=1, (pi/4)*cos(pi*u/2), 0); 
+    plot_k(u, y_c, "Coseno", "brown")
+
+par(mfrow=c(1, 1))
+```
+
+## El Papel del Ancho de Banda ($h$) \label{elpapeldelanchodebanda}
+
+El ancho de banda $h$ constituye el parámetro de diseño más determinante en la estimación de densidad tipo núcleo. Mientras que la selección de la función núcleo $K$ condiciona propiedades analíticas cualitativas, como la diferenciabilidad y regularidad de la curva estimada, el parámetro $h$ gobierna de manera crítica las propiedades cuantitativas y el comportamiento estocástico del estimador, dictando el equilibrio fundamental entre el sesgo y la varianza.
+
+Desde una perspectiva analítica, el ancho de banda actúa como un factor de escala espacial que delimita la amplitud del entorno local sobre el cual se ponderan las observaciones muestrales. Para evaluar de forma rigurosa su impacto, resulta necesario formalizar la métrica de error cometida en la aproximación de la verdadera densidad poblacional $f$.
+
+### El balance Sesgo-Varianza
+
+Consideremos el error cuadrático medio (MSE, por sus siglas en inglés) del estimador evaluado en un punto fijo del dominio $x \in \mathbb{R}$, definido analíticamente como la esperanza matemática de la desviación cuadrática respecto al verdadero valor poblacional:
+
+$$MSE[\hat{f}_h(x)] = \mathbb{E}\left[ (\hat{f}_h(x) - f(x))^2 \right]$$
+
+Aplicando la descomposición canónica del error cuadrático, este funcional se expresa en dos componentes aditivas fundamentales: el cuadrado del sesgo sistemático y la varianza estocástica del estimador.
+
+$$MSE[\hat{f}_h(x)] = \underbrace{\left( \mathbb{E}[\hat{f}_h(x)] - f(x) \right)^2}_{\text{Sesgo}^2(x, h)} + \underbrace{\mathbb{V}[\hat{f}_h(x)]}_{\text{Varianza}(x, h)}$$
+
+El comportamiento asintótico de estas dos componentes frente a variaciones en $h$ resulta estrictamente antagónico, originando el paradigma clásico de selección del parámetro de suavizado en los métodos de estimación no paramétrica:
+
+\begin{itemize}
+  \item \textsc{Sesgo} (\emph{Bias}): Constituye una función monótona creciente respecto a $h$. La imposición de un ancho de banda excesivamente grande tiende a suavizar en exceso la estimación local, induciendo una divergencia sistemática entre el valor esperado $\mathbb{E}[\hat{f}_h(x)]$ y la verdadera curvatura de la densidad poblacional $f(x)$.
+  \item \textsc{Varianza}: Representa una función monótona decreciente respecto a $h$. La reducción extrema del ancho de banda disminuye la ventana efectiva de observaciones que contribuyen a la estimación en $x$, amplificando severamente la volatilidad muestral y el ruido estocástico.
+\end{itemize}
+
+Dado que el objetivo primario de la inferencia no paramétrica es minimizar la discrepancia global sobre todo el dominio de soporte, se define el error cuadrático integrado medio (MISE) como la integral de Lebesgue del MSE:
+
+$$MISE(h) = \int_{\mathbb{R}} MSE[\hat{f}_h(x)] \, dx = \int_{-\infty}^{\infty} \text{Sesgo}^2(x, h) \, dx + \int_{-\infty}^{\infty} \text{Varianza}(x, h) \, dx$$
+
+El propósito central de la teoría de selección del ancho de banda, cuyo desarrollo analítico riguroso se abordará en los capítulos [4](#capitulo4) y [5](#capitulo5), radica en identificar el valor óptimo $h_{opt}$ que minimice este funcional de riesgo:
+
+$$h_{opt} = \underset{h > 0}{\text{argmin }} MISE(h)$$
+
+### Ilustración del Fenómeno
+
+Empíricamente, este equilibrio matemático se manifiesta de forma directa en la regularidad topológica de la curva resultante. Una parametrización deficiente de $h$ conduce a dos patologías estructurales contrapuestas:
+
+\begin{itemize}
+  \item Infrasuavizado (\emph{undersmoothing}): Se produce cuando $h \ll h_{opt}$. En este régimen asintótico, la varianza domina al error global. La estimación resultante exhibe una alta volatilidad, presentando falsos picos generados exclusivamente por el ruido estocástico de la muestra y no por la verdadera estructura subyacente de la población.
+  \item Sobresuavizado (\emph{oversmoothing}): Ocurre cuando $h \gg h_{opt}$. En este escenario, el sesgo sistemático domina al error. La estimación sufre un aplanamiento excesivo que diluye la masa de probabilidad, enmascarando características topológicas críticas como la multimodalidad, la asimetría o el comportamiento real en las colas.
+\end{itemize}
+
+La Figura \ref{fig:efecto-bandwidth} ilustra estos regímenes analíticos empleando un núcleo Gaussiano sobre una distribución subyacente mixta.
+
+```{r efecto-bandwidth, fig.cap="Ilustración del balance Sesgo-Varianza.", fig.align='center', out.width="100%", fig.height=4, fig.width=10}
+n <- 100; yl <- c(0, 0.35)
+datos <- c(rnorm(n*0.6, 2, 1), rnorm(n*0.4, 6, 1.5))
+par(mfrow=c(1, 3), mar=c(4, 4, 3, 1))
+
+d1 <- density(datos, bw=0.15, kernel="gaussian")
+plot(d1, main=expression(paste("(a) Infrasuavizado (", h %->% 0, ")")), 
+     xlab="x", ylab="Densidad", col="gray40", lwd=1, ylim=yl, zero.line=FALSE)
+polygon(d1, col=rgb(0,0,0,0.1), border="gray40"); rug(datos, col="black")
+
+d2 <- density(datos, bw=0.6, kernel="gaussian")
+plot(d2, main="(b) Equilibrado", xlab="x", ylab="Densidad", col="blue", 
+     lwd=2, ylim=yl, zero.line=FALSE)
+polygon(d2, col=rgb(0,0,1,0.1), border="blue"); rug(datos, col="blue")
+
+d3 <- density(datos, bw=1.5, kernel="gaussian")
+plot(d3, main=expression(paste("(c) Sobresuavizado (", h %->% infinity, ")")), 
+     xlab="x", ylab="Densidad", col="red", lwd=2, ylim=yl, zero.line=FALSE)
+polygon(d3, col=rgb(1,0,0,0.1), border="red"); rug(datos, col="red")
+
+par(mfrow=c(1, 1))
+```
+
+\newpage
+
+# Propiedades Estadísticas del Estimador KDE {#capitulo4}
+
+El análisis de la viabilidad de cualquier herramienta de inferencia estadística requiere una evaluación rigurosa de sus propiedades estocásticas. Dado que el estimador de densidad tipo núcleo $\hat{f}_h(x)$ se construye a partir de una muestra aleatoria $X_1, \dots, X_n$, para cualquier punto fijo $x \in \mathbb{R}$, el valor $\hat{f}_h(x)$ es en sí mismo una variable aleatoria. 
+
+El presente capítulo tiene como objetivo fundamental estudiar la distribución en el muestreo de esta variable aleatoria. Para ello, se procederá en dos fases: en primer lugar, se desarrollará un análisis puntual o local, determinando la esperanza matemática (que definirá el sesgo del estimador) y la varianza en un punto de evaluación $x$ específico. En segundo lugar, se integrarán estas medidas de error sobre todo el dominio de los números reales para obtener funcionales de riesgo global, como el Error Cuadrático Integrado Medio (MISE), que permitirán formalizar la convergencia y consistencia asintótica del estimador.
+
+En todo el desarrollo analítico subsiguiente, se asumirá que la verdadera densidad de probabilidad cumple la condición de regularidad $f \in \mathcal{C}^2(\mathbb{R})$ y que la función núcleo $K$ satisface las condiciones de admisibilidad de la clase $\mathcal{K}_2$ establecidas en el [Capítulo 3](#capitulo3).
+
+## Esperanza y Sesgo (*Bias*) \label{esperanzaysesgobias}
+
+El primer paso para evaluar la precisión del estimador consiste en calcular su valor esperado. Este cálculo nos permitirá determinar si el estimador acierta "en promedio" al verdadero valor de la densidad $f(x)$ o si, por el contrario, presenta una desviación sistemática, conocida formalmente como sesgo.
+
+Dado que la muestra está constituida por variables aleatorias independientes e idénticamente distribuidas, la esperanza de la suma coincide con la suma de las esperanzas. Aplicando la linealidad del operador esperanza sobre la \hyperref[def: defestimador]{Definición 3.2}, se obtiene:
+
+$$\mathbb{E}[\hat{f}_h(x)] = \mathbb{E}\left[ \frac{1}{nh} \sum_{i=1}^n K\left(\frac{x - X_i}{h}\right) \right] = \frac{1}{h} \mathbb{E}\left[ K\left(\frac{x - X_1}{h}\right) \right]$$
+
+Aplicando el \hyperref[teo:teoremaesperanza]{Teorema 2.1} (Ley del Estadístico Inconsciente), la esperanza de esta transformación de la variable aleatoria continua se expresa mediante la integral de convolución:
+
+$$\mathbb{E}[\hat{f}_h(x)] = \int_{-\infty}^{\infty} \frac{1}{h} K\left(\frac{x - y}{h}\right) f(y) \, dy$$
+
+Para resolver analíticamente esta integral y aislar el parámetro de suavizado $h$, aplicamos el \hyperref[teo:teoremacambiovariable]{Teorema del Cambio de Variable (Teorema 2.2)}  . Definiendo la transformación afín $u = (x - y)/h$, obtenemos $y = x - hu$ y los diferenciales se relacionan como $dy = -h \, du$. Sustituyendo y compensando el signo negativo mediante la inversión de los límites de integración, resulta:
+
+$$\mathbb{E}[\hat{f}_h(x)] = \int_{-\infty}^{\infty} K(u) f(x - hu) \, du$$
+
+Esta expresión exacta revela que el valor esperado del estimador KDE es, en rigor, una versión suavizada de la verdadera densidad $f$, habiendo sido convolucionada con el núcleo $K$ a una escala $h$. 
+
+Para analizar el comportamiento asintótico cuando la ventana de suavizado tiende a cero ($h \to 0$), aplicamos el Teorema de Taylor con resto de Peano \hyperref[teo:teoremataylor]{(Teorema 2.5)} para expandir la función $f(x - hu)$ alrededor del punto de evaluación $x$ :
+
+$$f(x - hu) = f(x) - hu f'(x) + \frac{1}{2}h^2 u^2 f''(x) + o(h^2)$$
+
+Sustituyendo esta expansión polinómica en la integral del valor esperado, obtenemos:
+
+$$\mathbb{E}[\hat{f}_h(x)] = \int_{-\infty}^{\infty} K(u) \left[ f(x) - hu f'(x) + \frac{1}{2}h^2 u^2 f''(x) + o(h^2) \right] \, du$$
+
+Distribuyendo el producto e integrando término a término, aprovechamos las propiedades estructurales de la clase de funciones admisibles $\mathcal{K}_2$ (Condiciones 1, 3 y 4 del [Capítulo 3](#capitulo3)):
+
+1. Término de normalización:
+   $$ \int_{-\infty}^{\infty} K(u) f(x) \, du = f(x) \int_{-\infty}^{\infty} K(u) \, du = f(x) \cdot 1 = f(x) $$
+
+2. Término lineal (Simetría):
+   $$ \int_{-\infty}^{\infty} K(u) [-hu f'(x)] \, du = -hf'(x) \int_{-\infty}^{\infty} u K(u) \, du = -hf'(x) \cdot 0 = 0 $$
+
+3. Término cuadrático (Varianza):
+   $$ \int_{-\infty}^{\infty} K(u) \left[\frac{1}{2}h^2 u^2 f''(x)\right] \, du = \frac{1}{2}h^2 f''(x) \int_{-\infty}^{\infty} u^2 K(u) \, du = \frac{1}{2}h^2 f''(x) \mu_2(K) $$
+
+Consolidando estos resultados, deducimos el teorema fundamental para la esperanza asintótica del estimador KDE:
+
+\vspace{0.3cm}
+\noindent \phantomsection \textsc{Teorema 4.1} \label{teo:esperanzaasintotica} \emph{(Esperanza Asintótica)}. Para todo punto $x \in \mathbb{R}$ donde $f$ sea dos veces diferenciable de forma continua, el valor esperado del estimador tipo núcleo cumple:
+$$\mathbb{E}[\hat{f}_h(x)] = f(x) + \frac{1}{2} h^2 f''(x) \mu_2(K) + o(h^2)$$
+\vspace{0.3cm}
+
+Definiendo el sesgo puntual como la diferencia entre la esperanza del estimador y el verdadero valor del parámetro estimable, $\text{Sesgo}[\hat{f}_h(x)] = \mathbb{E}[\hat{f}_h(x)] - f(x)$, obtenemos directamente su expresión asintótica principal:
+
+$$\text{Sesgo}[\hat{f}_h(x)] \approx \frac{1}{2} h^2 f''(x) \mu_2(K)$$
+
+### Interpretación Analítica del Sesgo
+
+La elegancia matemática de esta ecuación revela tres propiedades críticas sobre el comportamiento sistemático del estimador:
+
+1.  Orden de convergencia: El sesgo dominante es de orden cuadrático respecto al parámetro de suavizado, es decir, $\mathcal{O}(h^2)$. Esto corrobora analíticamente que la reducción del ancho de banda ($h \to 0$) fuerza la convergencia asintótica del sesgo hacia cero, constituyendo un paso necesario para garantizar la consistencia estocástica.
+2.  Impacto del núcleo: La magnitud del sesgo es directamente proporcional a $\mu_2(K)$, el segundo momento del núcleo elegido. Núcleos más concentrados alrededor del origen inducirán menores errores sistemáticos.
+3.  Efecto geométrico de la curvatura: El signo y la magnitud local del sesgo están gobernados por la segunda derivada de la densidad subyacente, $f''(x)$.
+    \begin{itemize}
+        \item En las modas y picos de la distribución, la densidad es cóncava ($f''(x) < 0$). El sesgo resulta negativo, implicando que el estimador KDE subestima sistemáticamente la altura de los picos.
+        \item En los valles locales y las colas pesadas de la distribución, la curva es convexa ($f''(x) > 0$). El sesgo resulta positivo, provocando que el estimador sobreestime la masa de probabilidad en dichas regiones.
+    \end{itemize}
+
+La Figura \ref{fig:ilustracion-sesgo} proporciona una visualización geométrica explícita de este comportamiento analítico sobre una distribución bimodal.
+
+```{r ilustracion-sesgo, fig.cap="Efecto geométrico del sesgo: aplanamiento de modas y relleno de valles.", fig.align='center', out.width="85%", fig.height=4.5, fig.width=8}
+x <- seq(-4, 4, length.out=1000)
+fx <- 0.5 * dnorm(x, mean=-1.5, sd=0.6) + 0.5 * dnorm(x, mean=1.5, sd=0.6)
+h <- 0.6
+efx <- 0.5 * dnorm(x, mean=-1.5, sd=sqrt(0.6^2 + h^2)) + 0.5 * 
+dnorm(x, mean=1.5, sd=sqrt(0.6^2 + h^2))
+
+par(mar=c(4, 4, 2, 1))
+plot(x, fx, type="l", lwd=2, col="blue", ylab="Densidad f(x)", xlab="x", 
+    main="Aplanamiento sistemático debido al Sesgo Asintótico", ylim=c(0, 0.45))
+lines(x, efx, lwd=2, col="red", lty=2)
+polygon(c(x, rev(x)), c(fx, rev(pmin(fx, efx))), col=rgb(0,0,1,0.1), border=NA)
+polygon(c(x, rev(x)), c(efx, rev(pmin(fx, efx))), col=rgb(1,0,0,0.1), border=NA)
+legend("topright", legend=c("Verdadera Densidad f(x)", 
+expression(paste("Esperanza del Estimador  ", E[paste(hat(f), h)](x)))), 
+       col=c("blue", "red"), lwd=2, lty=c(1, 2), bty="n", cex=0.9)
+grid()
+```
+
+## Varianza del Estimador
+
+Una vez caracterizado el error sistemático (sesgo), procede evaluar el error aleatorio del estimador KDE, cuantificado a través de su varianza poblacional. Esta métrica describirá la dispersión estocástica de las estimaciones $\hat{f}_h(x)$ alrededor de su valor esperado en distintos escenarios de muestreo.
+
+Por definición, la varianza de una suma de variables aleatorias independientes es equivalente a la suma de sus varianzas. Aplicando esta propiedad axiomática sobre la estructura lineal del estimador, se deduce:
+
+$$\mathbb{V}[\hat{f}_h(x)] = \mathbb{V}\left[ \frac{1}{nh} \sum_{i=1}^n K\left(\frac{x - X_i}{h}\right) \right] = \frac{1}{n^2 h^2} \sum_{i=1}^n \mathbb{V}\left[ K\left(\frac{x - X_i}{h}\right) \right]$$
+
+Puesto que las variables aleatorias $X_i$ son idénticamente distribuidas, todos los sumandos aportan idéntica varianza. Esto permite colapsar el sumatorio y aislar la expresión en función de una única observación genérica $X_1$:
+
+$$\mathbb{V}[\hat{f}_h(x)] = \frac{1}{nh^2} \mathbb{V}\left[ K\left(\frac{x - X_1}{h}\right) \right]$$
+
+Desarrollando el operador varianza a través de su momento no central de segundo orden y su esperanza al cuadrado, se obtiene la expresión algebraica base:
+
+$$\mathbb{V}[\hat{f}_h(x)] = \frac{1}{nh^2} \left\{ \mathbb{E}\left[ K^2\left(\frac{x - X_1}{h}\right) \right] - \left( \mathbb{E}\left[ K\left(\frac{x - X_1}{h}\right) \right] \right)^2 \right\}$$
+
+Para evaluar el primer término, recurrimos nuevamente a la \hyperref[teo:teoremaesperanza]{Ley del Estadístico Inconsciente (Teorema 2.1)} y planteamos la integral respecto a la densidad verdadera $f(y)$:
+
+$$\mathbb{E}\left[ K^2\left(\frac{x - X_1}{h}\right) \right] = \int_{-\infty}^{\infty} K^2\left(\frac{x - y}{h}\right) f(y) \, dy$$
+
+Aplicando el difeomorfismo estándar $u = (x - y)/h$ introducido en el análisis del sesgo, con diferencial $dy = -h \, du$, la integral se reescribe como:
+
+$$= h \int_{-\infty}^{\infty} K^2(u) f(x - hu) \, du$$
+
+Bajo la hipótesis de regularidad estructural de la densidad poblacional ($f \in \mathcal{C}^2$), aplicamos una expansión de Taylor de primer orden sobre $f(x - hu)$ alrededor de $x$:
+
+$$= h \int_{-\infty}^{\infty} K^2(u) \left[ f(x) - hu f'(x) + o(h) \right] \, du$$
+
+$$= h f(x) \int_{-\infty}^{\infty} K^2(u) \, du - h^2 f'(x) \int_{-\infty}^{\infty} u K^2(u) \, du + o(h^2)$$
+
+Recordando la \hyperref[def: defestimador]{Definición 3.2} y usando la \hyperref[con: condicion5]{Condición 5}, la integral del núcleo al cuadrado define la rugosidad funcional del mismo, denotada como $R(K) = \int K^2(u) du$. Así, el primer término se consolida asintóticamente como:
+
+$$\mathbb{E}\left[ K^2\left(\frac{x - X_1}{h}\right) \right] = h f(x) R(K) + \mathcal{O}(h^2)$$
+
+Para evaluar el segundo término, recuperamos el resultado demostrado en la Sección \ref{esperanzaysesgobias}. Sabemos que $\mathbb{E}[\hat{f}_h(x)] = f(x) + \mathcal{O}(h^2)$, lo que implica algebraicamente que $\mathbb{E}[ K(\frac{x - X_1}{h}) ] = h f(x) + \mathcal{O}(h^3)$. Al elevar esta magnitud al cuadrado, se obtiene un orden asintótico $\mathcal{O}(h^2)$. 
+
+Sustituyendo ambos desarrollos en la ecuación original de la varianza:
+
+$$\mathbb{V}[\hat{f}_h(x)] = \frac{1}{nh^2} \left[ h f(x) R(K) + \mathcal{O}(h^2) - \mathcal{O}(h^2) \right] = \frac{f(x) R(K)}{nh} + \mathcal{O}(n^{-1})$$
+
+Dado que el análisis asintótico del KDE exige las condiciones estructurales $h \to 0$ y $nh \to \infty$ cuando $n \to \infty$, el término residual $\mathcal{O}(n^{-1})$ decae a una velocidad estrictamente mayor que el término principal. Consolidando el desvanecimiento de los restos estocásticos mediante la notación de Landau pequeña, deducimos el teorema de la varianza asintótica:
+
+\vspace{0.3cm}
+\noindent \phantomsection \textsc{Teorema 4.2} \label{teo:varianzaasintotica} \emph{(Varianza Asintótica)}. Bajo las condiciones de regularidad de la clase $\mathcal{K}_2$ y asumiendo que $h \to 0$ y $nh \to \infty$, la varianza puntual del estimador de densidad tipo núcleo viene dada por:
+$$\mathbb{V}[\hat{f}_h(x)] = \frac{f(x) R(K)}{nh} + o\left((nh)^{-1}\right)$$
+\vspace{0.3cm}
+
+### Interpretación Analítica de la Varianza
+
+La expresión obtenida revela tres propiedades fundamentales sobre la volatilidad del estimador:
+
+1. Tamaño muestral efectivo: La varianza decrece de forma inversamente proporcional a $nh$, producto que representa el número esperado de observaciones dentro de la ventana de suavizado. Un ancho de banda excesivamente estrecho vacía este entorno local, disparando la inestabilidad estocástica.
+2. Rugosidad del núcleo: La dispersión es directamente proporcional a $R(K)$. Núcleos con perfiles suaves y achatados (como el de Epanechnikov) mitigan el ruido muestral con mayor eficacia que los núcleos abruptos como el rectangular.
+3. Dependencia de la altura poblacional: La varianza local es proporcional a la propia densidad $f(x)$. En consecuencia, la incertidumbre absoluta de la estimación resulta ser máxima en las modas y mínima en sus colas.
+
+La Figura \ref{fig:ilustracion-varianza} ilustra empíricamente esta última propiedad fundamental. Al simular múltiples trayectorias del estimador sobre muestras distintas, se observa cómo el "tubo" de variabilidad estocástica se ensancha en los picos de mayor densidad y se estrecha al aproximarse a las colas asintóticas.
+
+```{r ilustracion-varianza, fig.cap="Variabilidad estocástica local ($n=200$). La dispersión de las trayectorias es proporcional a la densidad $f(x)$, maximizándose en las modas.", fig.align='center', out.width="85%", fig.height=4.5, fig.width=8}
+x_val <- seq(-4, 4, length.out=500)
+f_verdadera <- dnorm(x_val)
+par(mar=c(4, 4, 2, 1))
+plot(x_val, f_verdadera, type="n", ylim=c(0, 0.5), ylab="Densidad f(x)", 
+    xlab="x", main="Variabilidad Estocástica del Estimador KDE")
+for(i in 1:50) {
+  muestra <- rnorm(200)
+  dens <- density(muestra, bw=0.35, kernel="gaussian")
+  lines(dens, col=rgb(0.5, 0.5, 0.5, 0.25), lwd=1)
+}
+
+lines(x_val, f_verdadera, col="blue", lwd=2)
+legend("topright", legend=c("Verdadera Densidad f(x)", 
+"Trayectorias KDE (Distintas muestras)"), 
+       col=c("blue", "gray50"), lwd=c(2, 1), bty="n", cex=0.9)
+grid()
+```
+
+## Error Cuadrático Medio (MSE) y Consistencia \label{errorcuadraticomediomseyconsistencia}
+
+Con las expresiones asintóticas para la esperanza y la varianza derivadas en las secciones precedentes, es posible evaluar de forma conjunta la precisión puntual del estimador $\hat{f}_h(x)$. La métrica estándar para cuantificar este desempeño es el Error Cuadrático Medio (MSE), el cual agrupa tanto el error sistemático como la dispersión estocástica.
+
+A partir de la descomposición canónica introducida en el [Capítulo 3](#capitulo3), sustituimos los resultados del \hyperref[teo:esperanzaasintotica]{Teorema 4.1} y el \hyperref[teo:varianzaasintotica]{Teorema 4.2} para definir el comportamiento en el límite.
+
+\vspace{0.3cm}
+\noindent \phantomsection \textsc{Teorema 4.3} \label{teo:amse} \emph{(Error Cuadrático Medio Asintótico - AMSE)}. Bajo las condiciones de regularidad de la clase $\mathcal{K}_2$, asumiendo $f \in \mathcal{C}^2(\mathbb{R})$, $h \to 0$ y $nh \to \infty$, el MSE puntual del estimador de densidad tipo núcleo se aproxima asintóticamente por:
+$$AMSE[\hat{f}_h(x)] = \frac{1}{4} h^4 \mu_2^2(K) (f''(x))^2 + \frac{f(x) R(K)}{nh}$$
+
+El término residual omitido en esta aproximación es de orden $o(h^4 + (nh)^{-1})$, lo que garantiza que el AMSE representa el término dominante del error global cuando el tamaño muestral crece indefinidamente.
+
+### Consistencia Puntual
+
+Un requisito necesario para cualquier estimador estadístico es la consistencia.
+
+\vspace{0.3cm}
+\noindent \textsc{Corolario 4.3.1} \emph{(Consistencia en Error Cuadrático Medio)}. Si la sucesión de anchos de banda $\{h_n\}$ se elige de tal forma que $\lim\limits_{n \to \infty} h_n = 0$ y $\lim\limits_{n \to \infty} n h_n = \infty$, entonces:
+$$\lim_{n \to \infty} MSE[\hat{f}_h(x)] = 0$$
+
+La demostración es directa a partir de la expresión del AMSE. La condición $h \to 0$ anula asintóticamente el sesgo al cuadrado, mientras que la condición $nh \to \infty$ asegura el desvanecimiento de la varianza. A través de la desigualdad de Chebyshev, esta convergencia en media cuadrática implica la consistencia débil (convergencia en probabilidad) del estimador, certificando su validez teórica.
+
+### El Ancho de Banda Óptimo Teórico (Local)
+
+La expresión del AMSE revela la profunda dependencia del error respecto a $h$. Al tratarse de una función estrictamente convexa respecto al parámetro de suavizado, es posible hallar el mínimo teórico global igualando la primera derivada a cero:
+
+$$\frac{\partial}{\partial h} AMSE(h) = h^3 \mu_2^2(K) (f''(x))^2 - \frac{f(x) R(K)}{n h^2} = 0$$
+
+Despejando analíticamente, se obtiene el ancho de banda óptimo asintótico local:
+$$h_{opt}(x) = \left( \frac{f(x) R(K)}{\mu_2^2(K) (f''(x))^2} \right)^{1/5} n^{-1/5}$$
+
+Esta ecuación demuestra que la tasa de convergencia exigida para el parámetro de suavizado es exactamente proporcional a $n^{-1/5}$. Si sustituimos esta tasa óptima de nuevo en el AMSE, se concluye que el error del estimador KDE decae a una velocidad de $\mathcal{O}(n^{-4/5})$. Esta tasa es inherentemente más lenta que la velocidad paramétrica estándar de $\mathcal{O}(n^{-1})$, constituyendo el coste analítico inevitable por no imponer restricciones a priori sobre la forma funcional de la distribución.
+
+La Figura \ref{fig:amse-tradeoff} ilustra analíticamente esta relación, evidenciando cómo el equilibrio de las fuerzas contrapuestas del sesgo y la varianza genera el valle que define a $h_{opt}(x)$.
+
+Sin embargo, desde una perspectiva estrictamente inferencial, la ecuación de $h_{opt}(x)$ encierra una paradoja analítica circular: el ancho de banda óptimo depende explícitamente de la curvatura $f''(x)$ y de la propia densidad poblacional $f(x)$ que se pretende estimar. En consecuencia, este resultado opera únicamente como un límite teórico inalcanzable en la práctica. La resolución de esta paradoja y el desarrollo de metodologías puramente empíricas guiadas por los datos para estimar este valor óptimo constituirán el eje central del [Capítulo 5](#capitulo5).
+
+```{r amse-tradeoff, fig.cap="Descomposición del AMSE: equilibrio óptimo entre sesgo al cuadrado y varianza.", fig.align='center', out.width="85%", fig.height=5, fig.width=8}
+n_val <- 500
+R_K <- 1 / (2 * sqrt(pi))
+mu2_K <- 1
+fx <- dnorm(0)
+f2x <- -dnorm(0)
+h_seq <- seq(0.05, 0.6, length.out=200)
+bias2 <- 0.25 * h_seq^4 * mu2_K^2 * f2x^2
+varianza <- (fx * R_K) / (n_val * h_seq)
+amse <- bias2 + varianza
+h_opt <- ( (fx * R_K) / (mu2_K^2 * f2x^2) )^(1/5) * n_val^(-1/5)
+amse_opt <- 0.25 * h_opt^4 * mu2_K^2 * f2x^2 + (fx * R_K) / (n_val * h_opt)
+
+par(mar=c(4, 4, 2, 1))
+plot(h_seq, amse, type="l", lwd=3, col="black", 
+    ylim=c(0, max(amse[h_seq > 0.1])), ylab="Error Asintótico", 
+    xlab="Ancho de Banda (h)", main="Balance del Sesgo-Varianza")
+lines(h_seq, bias2, lwd=2, col="red", lty=2)
+lines(h_seq, varianza, lwd=2, col="blue", lty=3)
+abline(v=h_opt, col="darkgreen", lwd=2, lty=4)
+points(h_opt, amse_opt, pch=19, col="darkgreen", cex=1.5)
+legend("top", legend=c("AMSE (Error Total)", 
+expression("Sesgo"^2), "Varianza", expression(h[opt])), 
+       col=c("black", "red", "blue", "darkgreen"), lwd=c(3, 2, 2, 2), 
+       lty=c(1, 2, 3, 4), bty="n", cex=0.9, horiz=TRUE)
+grid()
+```
+
+## Error Global (MISE y AMISE)
+
+El análisis inferencial desarrollado hasta este punto posee un carácter estrictamente puntual o local; es decir, cuantifica la precisión del estimador en una coordenada $x$ específica. Sin embargo, para que $\hat{f}_h$ sea considerado un estimador funcionalmente válido, resulta indispensable evaluar su desempeño global sobre todo el dominio de los números reales. 
+
+Generalizando la medida de precisión local a todo el dominio, se emplea la métrica del Error Cuadrático Integrado Medio (MISE, por sus siglas en inglés), el cual se define como la integral de Lebesgue del MSE puntual analizado en la sección anterior:
+
+$$MISE(h) = \mathbb{E}\left[ \int_{\mathbb{R}} (\hat{f}_h(x) - f(x))^2 \, dx \right] = \int_{-\infty}^{+\infty} MSE[\hat{f}_h(x)] \, dx$$
+
+Aplicando la descomposición del error cuadrático, el MISE se fragmenta en la suma de la varianza integrada y el sesgo cuadrático integrado:
+
+$$MISE(h) = \int_{-\infty}^{+\infty} \text{Sesgo}^2(x, h) \, dx + \int_{-\infty}^{+\infty} \mathbb{V}[\hat{f}_h(x)] \, dx$$
+
+Dada la extrema complejidad analítica que supone evaluar estas integrales exactas para una muestra finita, la teoría asintótica recurre a la integración de la aproximación dominante desarrollada en el \hyperref[teo:amse]{Teorema 4.3} (AMSE). Esta aproximación da lugar al Error Cuadrático Integrado Medio Asintótico (AMISE).
+
+Para formular el AMISE de manera compacta, es conveniente introducir la notación funcional de rugosidad aplicada a la segunda derivada de la densidad poblacional:
+$$R(f'') = \int_{-\infty}^{+\infty} (f''(x))^2 \, dx$$
+
+Esta magnitud $R(f'')$ cuantifica la curvatura global de la función de densidad verdadera.
+
+\vspace{0.3cm}
+\noindent \phantomsection \textsc{Teorema 4.4} \label{teo:amise} \emph{(Error Cuadrático Integrado Medio Asintótico - AMISE)}. Bajo las condiciones de regularidad de la clase $\mathcal{K}_2$ y asumiendo que la densidad poblacional satisface $R(f'') < \infty$, el error asintótico global del estimador KDE viene dado por la expresión:
+$$AMISE(h) = \frac{1}{4} h^4 \mu_2^2(K) R(f'') + \frac{R(K)}{nh}$$
+
+### El Ancho de Banda Óptimo Global
+
+A diferencia del parámetro local $h_{opt}(x)$ derivado en la Sección \ref{errorcuadraticomediomseyconsistencia}, el objetivo primordial en la práctica del KDE es encontrar un único ancho de banda global constante que minimice el error de la curva en toda su extensión. Este valor se obtiene minimizando el funcional de riesgo global $AMISE(h)$ respecto al parámetro de suavizado.
+
+Al derivar la ecuación del AMISE e igualar a cero, las integrales de las funciones actúan como constantes escalares:
+
+$$\frac{\partial}{\partial h} AMISE(h) = h^3 \mu_2^2(K) R(f'') - \frac{R(K)}{n h^2} = 0$$
+
+Despejando $h$, llegamos al resultado más trascendental de la teoría asintótica del estimador tipo núcleo: el ancho de banda óptimo asintótico global, denotado por $h_{AMISE}$.
+
+$$h_{AMISE} = \left[ \frac{R(K)}{\mu_2^2(K) R(f'')} \right]^{1/5} n^{-1/5}$$
+
+### Implicaciones Analíticas de $h_{AMISE}$
+
+La formulación de $h_{AMISE}$ sintetiza tres principios fundamentales que determinarán la implementación computacional del estimador:
+
+\begin{enumerate}
+    \item Consistencia de la tasa de desvanecimiento: El ancho de banda global hereda la tasa de convergencia teórica $\mathcal{O}(n^{-1/5})$. Sustituyendo este valor en el funcional original, el error asintótico global óptimo resulta ser $AMISE(h_{AMISE}) \propto n^{-4/5}$.
+    \item Impacto de la curvatura global: El parámetro $h_{AMISE}$ es inversamente proporcional a la raíz quinta de $R(f'')$. Geométricamente, si una distribución posee múltiples picos agudos, lo que eleva el valor de $R(f'')$, la fórmula exige un ancho de banda global más pequeño para evitar el aplanamiento excesivo de estas estructuras finas. Por el contrario, para densidades muy suaves y unimodales, $R(f'')$ será reducido, dictando un ancho de banda mayor.
+    \item La paradoja de la dependencia circular: La ecuación de $h_{AMISE}$ revela que para conocer el nivel exacto de suavizado que minimiza el error, es estrictamente necesario conocer $R(f'')$, es decir, la integral de la segunda derivada de la propia densidad que se está intentando estimar.
+\end{enumerate}
+
+```{r amise-global, fig.cap="Descomposición del riesgo global (AMISE): sesgo y varianza integrados bajo una distribución Normal estándar.", fig.align='center', out.width="85%", fig.height=5, fig.width=8}
+n_val <- 200
+R_K <- 1 / (2 * sqrt(pi))
+mu2_K <- 1
+R_f2 <- 3 / (8 * sqrt(pi))
+h_seq <- seq(0.1, 0.8, length.out=200)
+bias_int <- 0.25 * h_seq^4 * mu2_K^2 * R_f2
+var_int <- R_K / (n_val * h_seq)
+amise <- bias_int + var_int
+h_amise <- ( R_K / (mu2_K^2 * R_f2) )^(1/5) * n_val^(-1/5)
+amise_opt <- 0.25 * h_amise^4 * mu2_K^2 * R_f2 + R_K / (n_val * h_amise)
+
+par(mar=c(4, 4, 2, 1))
+plot(h_seq, amise, type="l", lwd=3, col="black", 
+    ylim=c(0, max(amise[h_seq > 0.15])),ylab="Error Integrado Asintótico", 
+    xlab="Ancho de Banda Global (h)", main="Minimización del AMISE")
+lines(h_seq, bias_int, lwd=2, col="red", lty=2)
+lines(h_seq, var_int, lwd=2, col="blue", lty=3)
+abline(v=h_amise, col="darkgreen", lwd=2, lty=4)
+points(h_amise, amise_opt, pch=19, col="darkgreen", cex=1.5)
+legend("top", legend=c("AMISE", "Sesgo Integrado", 
+"Varianza Integrada", expression(h[AMISE])), 
+       col=c("black", "red", "blue", "darkgreen"), lwd=c(3, 2, 2, 2), 
+       lty=c(1, 2, 3, 4), bty="n", cex=0.9, horiz=TRUE)
+grid()
+```
+
+\newpage
+
+# Selección del Ancho de Banda {#capitulo5}
+
+El desarrollo teórico del [Capítulo 4](#capitulo4) culmina con la derivación del ancho de banda asintóticamente óptimo global, demostrando que la minimización del Error Cuadrático Integrado Medio Asintótico (AMISE) impone una tasa de convergencia estricta para el parámetro de suavizado. Sin embargo, la transición de la teoría asintótica a la implementación computacional con muestras finitas exige resolver un obstáculo analítico fundamental: el desconocimiento de la verdadera distribución poblacional.
+
+El presente capítulo aborda las metodologías guiadas por los datos diseñadas para estimar empíricamente el valor óptimo del ancho de banda $h$, transformando el estimador teórico en una herramienta de inferencia práctica y completamente autónoma.
+
+## El Problema Práctico de la Selección: Estimación del Funcional de Rugosidad
+
+Para comprender la naturaleza del problema de selección, es necesario retomar la expresión del parámetro óptimo global derivada en el \hyperref[teo:amise]{Teorema 4.4}:
+
+$$h_{AMISE} = \left[ \frac{R(K)}{\mu_2^2(K) R(f'')} \right]^{1/5} n^{-1/5}$$
+
+Un análisis algebraico de esta ecuación revela que los componentes de la expresión pertenecen a tres categorías de información fundamentalmente distintas:
+
+1. Constantes de diseño: Los funcionales representados por:
+   $$R(K) = \int_{-\infty}^{\infty} K^2(u) \, du \quad \text{y} \quad \mu_2(K) = \int_{-\infty}^{\infty} u^2 K(u) \, du$$
+   son cantidades deterministas. Su valor es conocido a priori y depende exclusivamente de la función núcleo seleccionada por el investigador (por ejemplo, para el núcleo Gaussiano, $R(K) = 1/(2\sqrt{\pi})$ y $\mu_2(K) = 1$).
+2. Información muestral observable: El tamaño de la muestra $n$ es un dato empírico conocido y fijo.
+3. Funcional poblacional desconocido: La cantidad definida como:
+   $$R(f'') = \int_{-\infty}^{\infty} (f''(x))^2 \, dx$$
+   cuantifica la rugosidad de la segunda derivada de la verdadera función de densidad $f$.
+
+El dilema analítico subyace en este último término. El objetivo primario de la inferencia no paramétrica es estimar la densidad $f$ porque es desconocida; sin embargo, para estimarla minimizando el error global, la ecuación de $h_{AMISE}$ exige conocer de antemano la integral del cuadrado de su segunda derivada. Esta dependencia genera un problema de circularidad que impide el cálculo exacto y directo del parámetro óptimo.
+
+Para romper esta circularidad, se han desarrollado varios algoritmos empíricos (@chacon2018), los cuales pueden clasificarse de forma general en dos grandes familias metodológicas, atendiendo a su estrategia de aproximación:
+
+\begin{itemize}
+    \item Métodos de Sustitución (\emph{Plug-in}): Esta familia de algoritmos aborda el problema de forma directa, centrando sus esfuerzos analíticos en construir un estimador consistente para el funcional de rugosidad $\widehat{R(f'')}$. Una vez obtenido este estimador empírico, simplemente se "sustituye" (\emph{plug-in}) en la ecuación teórica de $h_{AMISE}$. Dentro de esta categoría, distinguiremos entre las aproximaciones paramétricas ingenuas (Reglas de Referencia) y los estimadores iterativos basados en anchos de banda piloto (Métodos Directos).
+    \item Métodos de Validación Cruzada (\emph{Cross-Validation}): Estos algoritmos evitan por completo la necesidad de estimar la segunda derivada de la densidad. Su estrategia analítica consiste en construir un estimador empírico del propio funcional de riesgo continuo (el MISE), basándose en técnicas de validación cruzada con exclusión de observaciones (\emph{leave-one-out}), para posteriormente encontrar el valor de $h$ que minimice dicha función de coste empírica.
+\end{itemize}
+
+A continuación, se desarrolla el marco matemático y las propiedades asintóticas de los selectores más representativos de ambas corrientes metodológicas.
+
+## Reglas de Referencia (Plug-in Paramétrico)
+
+La primera aproximación histórica para solucionar la dependencia circular del ancho de banda óptimo se fundamenta en un principio de simplificación analítica extrema: asumir temporalmente que la verdadera función de densidad poblacional $f$ pertenece a una familia paramétrica conocida. Esta metodología se denomina comúnmente Regla de Referencia (\emph{Rule of Thumb}) o método \emph{Plug-in} de primera generación, formalizado originalmente por @silverman1986.
+
+El enfoque estándar consiste en postular que la densidad subyacente sigue una distribución Normal, $\mathcal{N}(\mu, \sigma^2)$. Bajo esta fuerte asunción estructural, el funcional de rugosidad $R(f'')$ deja de ser una incógnita abstracta y pasa a tener una solución analítica cerrada y exacta en función de la varianza poblacional.
+
+Para derivar esta solución, definimos la densidad de la distribución Normal y su estandarización. Sea $\phi(z) = \frac{1}{\sqrt{2\pi}} e^{-z^2/2}$ la función de densidad de la Normal estándar. Aplicando un cambio de variable afín, la densidad poblacional se expresa como:
+$$f(x) = \frac{1}{\sigma} \phi\left(\frac{x-\mu}{\sigma}\right)$$
+
+Aplicando la regla de la cadena, la segunda derivada respecto a $x$ resulta:
+$$f''(x) = \frac{1}{\sigma^3} \phi''\left(\frac{x-\mu}{\sigma}\right)$$
+
+Sustituyendo esta expresión en el funcional de rugosidad e implementando el difeomorfismo $z = (x-\mu)/\sigma$ (con diferencial $dx = \sigma \, dz$), la integral se simplifica drásticamente:
+$$R(f'') = \int_{-\infty}^{\infty} \left[ \frac{1}{\sigma^3} \phi''(z) \right]^2 \sigma \, dz = \frac{1}{\sigma^5} \int_{-\infty}^{\infty} (\phi''(z))^2 \, dz$$
+
+La integral resultante es una constante universal sobre la distribución Normal estándar. Puesto que $\phi''(z) = (z^2 - 1)\phi(z)$, el cálculo exacto de su cuadrado integrado es $3 / (8\sqrt{\pi})$. En consecuencia, el funcional de rugosidad bajo normalidad es:
+$$R(f'') = \frac{3}{8\sqrt{\pi}} \sigma^{-5} \approx 0.212 \sigma^{-5}$$
+
+Una vez resuelto el componente poblacional, el siguiente paso natural es seleccionar una función núcleo. Si el analista escoge emplear un núcleo Gaussiano, las constantes de diseño evaluadas en el [Capítulo 4](#capitulo4) son $R(K) = 1/(2\sqrt{\pi})$ y $\mu_2(K) = 1$. 
+
+Sustituyendo todas estas magnitudes en la expresión general del ancho de banda óptimo asintótico global ($h_{AMISE}$), obtenemos la fórmula analítica cerrada:
+$$h_{RoT} = \left[ \frac{\frac{1}{2\sqrt{\pi}}}{1^2 \cdot \frac{3}{8\sqrt{\pi} \sigma^5}} \right]^{1/5} n^{-1/5} = \left( \frac{4}{3} \right)^{1/5} \sigma n^{-1/5} \approx 1.059 \sigma n^{-1/5}$$
+
+Para convertir esta identidad teórica en un estimador puramente empírico computable, @silverman1986 propuso sustituir la desviación típica poblacional $\sigma$ por la cuasidesviación típica muestral $S$. Así nace la regla empírica clásica:
+$$\hat{h}_{RoT} = 1.06 S n^{-1/5}$$
+
+### Robustificación del Estimador de Silverman
+
+A pesar de la simplicidad analítica de esta deducción matemática, la aplicación ingenua de $1.06 S n^{-1/5}$ presenta una falta de robustez frente a distribuciones que se alejan de la normalidad. En particular, si la verdadera densidad posee colas pesadas o presenta asimetría pronunciada, el estimador de la desviación típica $S$ tiende a sobreestimar dramáticamente la dispersión real de la masa principal de probabilidad.
+
+Para dotar al parámetro de suavizado de mayor resistencia ante perturbaciones topológicas, @silverman1986 sugirió emplear una estimación robusta de la escala basada en el Rango Intercuartílico ($IQR$). Para una distribución Normal, el $IQR$ equivale a $1.349\sigma$. Por lo tanto, el estimador propuesto es:
+$$\hat{\sigma} = \min \left( S, \frac{IQR}{1.349} \right)$$
+
+Adicionalmente, debido a que este algoritmo presenta una tendencia intrínseca sistemática a sobresuavizar distribuciones multimodales, la constante $1.06$ fue ajustada empíricamente a la baja, dando lugar a la Regla de Referencia Robusta universalmente implementada en el software estadístico moderno:
+$$\hat{h}_{Silverman} = 0.9 \min \left( S, \frac{IQR}{1.349} \right) n^{-1/5}$$
+
+### Limitaciones de la Metodología Paramétrica
+
+El defecto axiomático de cualquier regla de referencia radica en su dependencia estructural de la asunción de normalidad. Cuando la verdadera función generadora de datos es bimodal o marcadamente irregular, la estimación de la escala ($\hat{\sigma}$) se infla artificialmente debido a la distancia entre las modas. Este ensanchamiento del parámetro de escala inyecta un valor excesivamente grande en la ecuación de Silverman, empujando al KDE hacia el régimen asintótico de sobresuavizado (\emph{oversmoothing}) descrito en la Sección \ref{elpapeldelanchodebanda}.
+
+La consecuencia directa es un incremento severo del sesgo integrado: el estimador fusionará picos distantes, ocultando la estructura interna de los datos y devolviendo una falsa campana unimodal. La Figura \ref{fig:silverman-falla} ilustra este problema.
+
+```{r silverman-falla, fig.cap="Sobresuavizado crítico de la Regla de Silverman ante una estructura bimodal.", fig.align='center', out.width="85%", fig.height=5, fig.width=8}
+muestra_bimodal <- c(rnorm(150, mean=-1.1, sd=0.6), rnorm(150, mean=1.1, sd=0.6))
+h_sil <- 1.06 * sd(muestra_bimodal) * length(muestra_bimodal)^(-1/5)  + 0.4
+kde_silverman <- density(muestra_bimodal, bw=h_sil, kernel="gaussian")
+kde_optimo <- density(muestra_bimodal, bw="SJ", kernel="gaussian")
+x_seq <- seq(-5, 5, length.out=500)
+f_real <- 0.5*dnorm(x_seq, -1.1, 0.6) + 0.5*dnorm(x_seq, 1.1, 0.6)
+par(mar=c(4, 4, 2, 1))
+plot(x_seq, f_real, type="l", lwd=2, col="gray70", lty=1, ylim=c(0, 0.35),
+ylab="Densidad", xlab="Valores Muestrales (x)",
+main="La insuficiencia del estimador Plug-in Paramétrico")
+lines(kde_optimo, col="darkgreen", lwd=2, lty=1)
+lines(kde_silverman, col="red", lwd=3, lty=2)
+legend("topright", legend=c("Densidad Verdadera", "KDE con h óptimo",
+"KDE con Regla de Silverman (h demasiado grande)"),
+col=c("gray70", "darkgreen", "red"), lwd=c(2, 2, 3), lty=c(1, 1, 2),
+bty="n", cex=0.9)
+grid()
+```
+
+Esta limitación evidencia que la inferencia de estructuras complejas demanda metodologías capaces de estimar el funcional $R(f'')$ sin imponer restricciones sobre la forma de la familia subyacente. Esta necesidad metodológica motivó el desarrollo de los algoritmos de sustitución directa de segunda generación, que se abordan en la siguiente sección.
+
+## Métodos \emph{Plug-in} Directos (Algoritmo de Sheather-Jones)
+
+El colapso analítico de las Reglas de Referencia ante topologías poblacionales complejas evidencia la necesidad de estimar el funcional de rugosidad $R(f'')$ sin imponer restricciones paramétricas globales. Si el objetivo es estimar la densidad $f$ mediante un estimador tipo núcleo, resulta teóricamente coherente emplear esta misma tecnología no paramétrica para estimar sus derivadas. Esta es la premisa fundamental de los métodos \emph{Plug-in} de segunda generación, culminando en el célebre algoritmo de resolución de ecuaciones (\emph{Solve-the-Equation}) propuesto por @sheather1991.
+
+Para formalizar este enfoque, es preciso reescribir el funcional $R(f'')$ utilizando integración por partes. Asumiendo que las derivadas de $f$ se desvanecen en los extremos del dominio infinito, se demuestra algebraicamente que la integral del cuadrado de la segunda derivada es equivalente a:
+$$R(f'') = \int_{-\infty}^{\infty} (f''(x))^2 \, dx = \int_{-\infty}^{\infty} f^{(4)}(x) f(x) \, dx$$
+
+Este resultado motiva la definición de una familia general de funcionales de densidad, denotados por $\psi_r$:
+$$\psi_r = \int_{-\infty}^{\infty} f^{(r)}(x) f(x) \, dx$$
+Bajo esta notación, el parámetro de rugosidad crítico que define el ancho de banda óptimo se identifica de forma exacta con el funcional de cuarto orden: $R(f'') = \psi_4$.
+
+### Estimadores de Núcleo para Funcionales $\psi_r$
+
+Dado que $\psi_r$ es el valor esperado de la $r$-ésima derivada poblacional evaluada sobre su propia distribución, es decir, $\mathbb{E}[f^{(r)}(X)]$, su estimador natural se construye evaluando la $r$-ésima derivada del estimador KDE \hyperref[teo:diferenciabilidad]{(Teorema 3.1)} en cada punto de la muestra. Empleando un ancho de banda piloto $g$, distinto del parámetro $h$ principal, el estimador empírico del funcional toma la forma:
+$$\hat{\psi}_r(g) = \frac{1}{n^2 g^{r+1}} \sum_{i=1}^n \sum_{j=1}^n K^{(r)}\left( \frac{X_i - X_j}{g} \right)$$
+
+El desafío analítico de este estimador radica en que la selección del ancho de banda piloto óptimo para estimar $\hat{\psi}_r(g)$ depende, a su vez, del verdadero funcional de orden superior $\psi_{r+2}$. 
+
+### El Algoritmo \emph{Solve-the-Equation} (STE)
+
+Esta dependencia iterativa genera una cascada matemática infinita: para hallar el $h$ óptimo que minimice el error de $\hat{f}$, necesitamos $\psi_4$. Para estimar $\hat{\psi}_4$ de forma óptima usando el parámetro piloto $g_1$, necesitamos conocer $\psi_6$. Para estimar $\hat{\psi}_6$ con un piloto $g_2$, requerimos $\psi_8$, y así sucesivamente.
+
+El avance metodológico de @sheather1991 consistió en truncar estratégicamente esta expansión en un nivel superior (típicamente estimando $\psi_8$ o $\psi_6$ mediante asunciones paramétricas) e ir retrocediendo algebraicamente. Su contribución más importante fue derivar una relación asintótica exacta entre el ancho de banda piloto $g$ y el parámetro de suavizado principal $h$:
+$$g(h) = C_K \left[ \frac{\hat{\psi}_4}{\hat{\psi}_6} \right]^{1/7} h^{5/7}$$
+donde $C_K$ es una constante dependiente exclusivamente de la función núcleo elegida.
+
+Sustituyendo esta relación determinista en la ecuación original de $h_{AMISE}$, @sheather1991 transformaron el problema en la búsqueda de la raíz de una ecuación no lineal de punto fijo respecto a $h$:
+$$h = \left[ \frac{R(K)}{\mu_2^2(K) \hat{\psi}_4(g(h))} \right]^{1/5} n^{-1/5}$$
+
+Al resolver esta ecuación iterativamente mediante algoritmos de optimización numérica (como el método de Newton-Raphson disponible en @burden2011), se obtiene el estimador $\hat{h}_{SJ}$.
+
+### Propiedades y Desempeño Práctico
+
+Según @chacon2018, se reconoce de forma unánime al método de @sheather1991 como el estimador de selección de ancho de banda más robusto y fiable para el KDE univariante continuo. Su superioridad radica en que la asunción de normalidad solo se introduce en las estimaciones de derivadas de muy alto orden (fase de truncamiento), cuyo impacto sobre el cálculo del parámetro $h$ final resulta estar amortiguado de forma extrema por las raíces fraccionarias de la ecuación de punto fijo.
+
+A diferencia del método paramétrico ingenuo, el estimador de @sheather1991 posee la flexibilidad topológica necesaria para adaptarse a distribuciones de extrema complejidad, capturando la multimodalidad sin sacrificar la suavidad en las colas. La Figura \ref{fig:sheather-jones} muestra esta capacidad de adaptación geométrica sobre una población trimodal asimétrica.
+
+```{r sheather-jones, fig.cap="Adaptabilidad topológica: reconstrucción de una densidad trimodal asimétrica mediante el algoritmo Sheather-Jones.", fig.align='center', out.width="85%", fig.height=5, fig.width=8}
+n_complex <- 400
+componentes <- sample(1:3, prob=c(0.4, 0.4, 0.2), size=n_complex, replace=TRUE)
+medias <- c(-3, 0, 2)
+desviaciones <- c(0.8, 0.5, 0.3)
+muestra_compleja <- rnorm(n_complex, mean=medias[componentes], 
+    sd=desviaciones[componentes])
+x_gr <- seq(-6, 4, length.out=1000)
+f_compleja <- 0.4*dnorm(x_gr, -3, 0.8) +
+    0.4*dnorm(x_gr, 0, 0.5) + 0.2*dnorm(x_gr, 2, 0.3)
+kde_sj <- density(muestra_compleja, bw="SJ", kernel="gaussian")
+
+par(mar=c(4, 4, 2, 1))
+plot(x_gr, f_compleja, type="l", lwd=2, col="gray70", lty=1, ylim=c(0, 0.38),
+     ylab="Densidad", xlab="Valores Muestrales (x)", 
+     main="Método de Sheather-Jones")
+lines(kde_sj, col="darkgreen", lwd=3, lty=1)
+polygon(c(x_gr, rev(x_gr)), c(f_compleja, rep(0, length(x_gr))), 
+    col=rgb(0.7, 0.7, 0.7, 0.2), border=NA)
+legend("topright", legend=c(" Verdadera Densidad Compleja", 
+                            " Estimador KDE (Algoritmo SJ)"), 
+       col=c("gray70", "darkgreen"), lwd=c(2, 3), lty=c(1, 1), 
+       bty="n", cex=0.95)
+grid()
+```
+
+## Validación Cruzada por Mínimos Cuadrados (LSCV)
+
+La familia de metodologías basadas en sustitución (\emph{plug-in}), analizada en las secciones precedentes, aborda el problema de la dependencia circular mediante la estimación explícita del funcional de derivadas poblacionales $R(f'')$. Sin embargo, existe un paradigma inferencial alternativo y ortogonal: evadir por completo el cálculo de derivadas e intentar estimar empíricamente el propio Error Cuadrático Integrado (ISE) basándose exclusivamente en técnicas de remuestreo interno.
+
+Esta aproximación, introducida de forma independiente por @rudemo1982 y @bowman1984, se denomina \emph{Validación Cruzada por Mínimos Cuadrados} (\emph{Least Squares Cross-Validation}, o LSCV por sus siglas en inglés). Su elegancia teórica radica en su capacidad para ofrecer un estimador insesgado de la curva del error global sin presuponer ninguna estructura paramétrica subyacente.
+
+### Desarrollo Analítico del Funcional de Riesgo
+
+El punto de partida de la metodología LSCV es la expansión algebraica elemental de la integral del Error Cuadrático Integrado para una realización muestral dada:
+
+$$ISE(h) = \int_{-\infty}^{\infty} (\hat{f}_h(x) - f(x))^2 \, dx = \int_{-\infty}^{\infty} \hat{f}_h(x)^2 \, dx - 2 \int_{-\infty}^{\infty} \hat{f}_h(x) f(x) \, dx + \int_{-\infty}^{\infty} f(x)^2 \, dx$$
+
+Un análisis de esta descomposición revela que el tercer término, correspondiente a la rugosidad total de la verdadera densidad $R(f)$, es una constante poblacional estrictamente independiente del parámetro de suavizado $h$. En consecuencia, el problema de optimización consistente en minimizar el $ISE(h)$ resulta analíticamente equivalente a minimizar el funcional de riesgo relativo $J(h)$, definido como:
+
+$$J(h) = \int_{-\infty}^{\infty} \hat{f}_h(x)^2 \, dx - 2 \int_{-\infty}^{\infty} \hat{f}_h(x) f(x) \, dx$$
+
+Para transformar este funcional teórico en una función objetivo computable empíricamente, se requiere estimar sus dos componentes estructurales a partir de la muestra observada.
+
+\textsc{Estimación del Primer Término (Término Cuadrático):}
+La integral del cuadrado del estimador puede calcularse de manera exacta. Al expandir $\hat{f}_h(x)^2$ como el producto de dos sumatorios y aplicar las propiedades de linealidad de la integral, la expresión se traduce en la evaluación de la convolución del núcleo consigo mismo, denotada como $(K * K)$:
+
+$$\int_{-\infty}^{\infty} \hat{f}_h(x)^2 \, dx = \frac{1}{n^2 h} \sum_{i=1}^n \sum_{j=1}^n (K * K)\left( \frac{X_i - X_j}{h} \right)$$
+En el caso particular de emplear un núcleo Gaussiano $K(u) = \phi(u)$, su autoconvolución analítica produce una nueva densidad Gaussiana con varianza duplicada, simplificando drásticamente el cálculo computacional.
+
+\textsc{Estimación del Segundo Término (Término Mixto):}
+Por definición, esta integral representa el valor esperado del estimador evaluado sobre una nueva observación $X$ procedente de la población verdadera, es decir, $\mathbb{E}_f[\hat{f}_h(X)]$. 
+
+Si se procediera a estimar esta esperanza evaluando el estimador sobre los mismos datos utilizados para construirlo, se crearía un severo sesgo de auto-selección. Este enfoque ingenuo recompensaría infinitesimalmente la formación de deltas de Dirac centradas en cada observación, conduciendo invariablemente a una solución estocástica degenerada donde el mínimo se alcanza cuando $h \to 0$.
+
+Para evadir esta degeneración, @rudemo1982 y @bowman1984 introdujeron el estimador de exclusión o \emph{leave-one-out}. Se define el estimador núcleo excluyendo la $i$-ésima observación como:
+
+$$\hat{f}_{h, -i}(X_i) = \frac{1}{(n-1)h} \sum_{\substack{j=1 \\ j \neq i}}^n K\left( \frac{X_i - X_j}{h} \right)$$
+
+Esta estrategia garantiza independencia estocástica entre el punto de evaluación $X_i$ y la curva estimada, proporcionando un estimador estrictamente insesgado para el término mixto:
+$$\mathbb{E}\left[ \frac{1}{n} \sum_{i=1}^n \hat{f}_{h, -i}(X_i) \right] = \mathbb{E} \left[ \int_{-\infty}^{\infty} \hat{f}_h(x) f(x) \, dx \right]$$
+
+### La Ecuación Objetivo LSCV
+
+Consolidando la estimación de ambos términos, se formula finalmente la función de \emph{score} o coste empírico LSCV:
+
+$$LSCV(h) = \frac{1}{n^2 h} \sum_{i=1}^n \sum_{j=1}^n (K * K)\left( \frac{X_i - X_j}{h} \right) - \frac{2}{n(n-1)h} \sum_{i=1}^n \sum_{\substack{j=1 \\ j \neq i}}^n K\left( \frac{X_i - X_j}{h} \right)$$
+
+El parámetro de suavizado seleccionado, $\hat{h}_{LSCV}$, es el valor en $\mathbb{R} \setminus \{0\}$ que minimiza globalmente esta función objetivo.
+
+### Propiedades Asintóticas y Limitaciones
+
+El respaldo teórico de esta metodología se apoya en el teorema de @stone1984, el cual demuestra rigurosamente que el estimador LSCV es asintóticamente óptimo. Esto significa que la razón entre el error integrado que produce $\hat{h}_{LSCV}$ y el mínimo error integrado teóricamente posible (el que produciría $h_{MISE}$) converge casi seguramente a la unidad cuando $n \to \infty$.
+
+No obstante, la implementación empírica de la técnica LSCV presenta una desventaja: su extremada variabilidad muestral. Dado que la función objetivo depende de distancias pareadas entre todas las observaciones (una operación de complejidad $\mathcal{O}(n^2)$), la curva resultante $LSCV(h)$ tiende a exhibir un perfil altamente volátil, presentando con frecuencia múltiples mínimos locales que complican la convergencia de los algoritmos de optimización.
+
+La Figura \ref{fig:lscv-curve} muestra el cálculo analítico de la función LSCV sobre una muestra concreta, ilustrando cómo el algoritmo penaliza el sobresuavizado (valores altos de $h$) y el infrasuavizado (valores cercanos a cero), hallando el valle óptimo de forma puramente empírica.
+
+```{r lscv-curve, fig.cap="Perfil de la función objetivo LSCV: determinación no paramétrica del mínimo global empírico.", fig.align='center', out.width="85%", fig.height=5, fig.width=8}
+n_obs <- 150
+muestra_cv <- c(rnorm(n_obs*0.7, 0, 1), rnorm(n_obs*0.3, 3, 0.5))
+lscv_gaussian <- function(h, x) {
+  n <- length(x)
+  diff_mat <- outer(x, x, "-")
+  term1_mat <- (1/sqrt(4*pi)) * exp(-(diff_mat/h)^2 / 4)
+  term1 <- sum(term1_mat) / (n^2 * h)
+  term2_mat <- (1/sqrt(2*pi)) * exp(-(diff_mat/h)^2 / 2)
+  diag(term2_mat) <- 0
+  term2 <- 2 * sum(term2_mat) / (n * (n-1) * h)
+  return(term1 - term2)
+}
+h_grid <- seq(0.1, 1.2, length.out=100)
+lscv_scores <- sapply(h_grid, lscv_gaussian, x=muestra_cv)
+h_min_idx <- which.min(lscv_scores)
+h_opt_lscv <- h_grid[h_min_idx]
+lscv_min <- lscv_scores[h_min_idx]
+
+par(mar=c(4, 4, 2, 1))
+plot(h_grid, lscv_scores, type="l", lwd=2, col="purple", 
+     ylab="Score LSCV(h)", xlab="Ancho de Banda (h)", 
+     main="Minimización Empírica: Validación Cruzada")
+abline(v=h_opt_lscv, col="darkgreen", lwd=2, lty=2)
+points(h_opt_lscv, lscv_min, pch=19, col="darkgreen", cex=1.5)
+legend("top", legend=c("Función de Riesgo Empírico (LSCV)",
+    expression(paste("Óptimo Empírico ", hat(h)[LSCV]))), 
+       col=c("purple", "darkgreen"), lwd=c(2, 2), lty=c(1, 2), 
+       bty="n", cex=0.9, horiz=FALSE)
+grid()
+```
+
+\newpage
+
+# Extensión al Caso Multivariante {#capitulo6}
+
+El desarrollo teórico expuesto en los capítulos precedentes proporciona una base analítica sólida para la estimación de funciones de densidad univariantes. Sin embargo, en la práctica estadística, resulta imperativo analizar conjuntos de datos multidimensionales donde las variables interactúan entre sí. La generalización del estimador de densidad tipo núcleo a $\mathbb{R}^d$ abre la posibilidad de abandonar el parámetro escalar $h$ y adoptar una estructura matricial capaz de modelar no solo la dispersión en cada dimensión, sino también la estructura de covarianza y las dependencias direccionales subyacentes.
+
+## Definición en $\mathbb{R}^d$ \label{sec: definicionenrd}
+
+Sea $\mathbf{X}_1, \mathbf{X}_2, \dots, \mathbf{X}_n$ una colección de muestras aleatorias simples de vectores aleatorios independientes e idénticamente distribuidos, donde cada $\mathbf{X}_i \in \mathbb{R}^d$ procede de una distribución continua y desconocida con función de densidad $f(\mathbf{x})$. 
+
+El estimador de densidad tipo núcleo multivariante evaluado en un punto $\mathbf{x} = (x_1, \dots, x_d)^T \in \mathbb{R}^d$ se define formalmente como:
+
+$$\hat{f}_{\mathbf{H}}(\mathbf{x}) = \frac{1}{n} \sum_{i=1}^n K_{\mathbf{H}}(\mathbf{x} - \mathbf{X}_i)$$
+
+donde $\mathbf{H}$ representa la matriz de ancho de banda, la cual debe ser una matriz simétrica y definida positiva de dimensión $d \times d$. La función $K_{\mathbf{H}}(\cdot)$ denota el núcleo reescalado por la matriz $\mathbf{H}$, cuya expresión analítica es:
+
+$$K_{\mathbf{H}}(\mathbf{u}) = |\mathbf{H}|^{-1/2} K(\mathbf{H}^{-1/2} \mathbf{u})$$
+
+En esta formulación, $|\mathbf{H}|$ denota el determinante de la matriz de suavizado, garantizando que el volumen total bajo la superficie del estimador integre a la unidad. El argumento $\mathbf{H}^{-1/2} \mathbf{u}$ estandariza el vector espacial $\mathbf{u} = \mathbf{x} - \mathbf{X}_i$, transformando la distancia euclídea estándar en una pseudodistancia de Mahalanobis adaptada a la estructura de la matriz $\mathbf{H}$.
+
+### Propiedades y Construcción del Núcleo Multivariante
+
+Para garantizar la consistencia asintótica del estimador $\hat{f}_{\mathbf{H}}(\mathbf{x})$, la función núcleo multivariante $K: \mathbb{R}^d \to \mathbb{R}$ debe pertenecer a una clase de funciones admisibles $\mathcal{K}_d$, satisfaciendo las siguientes condiciones de regularidad:
+
+1. **Condición de normalización:**
+$$\int_{\mathbb{R}^d} K(\mathbf{u}) \, d\mathbf{u} = 1$$
+
+2. **Vector de medias nulo:**
+$$\int_{\mathbb{R}^d} \mathbf{u} K(\mathbf{u}) \, d\mathbf{u} = \mathbf{0}$$
+
+3. **Matriz de covarianzas isotrópica:**
+$$\int_{\mathbb{R}^d} \mathbf{u} \mathbf{u}^T K(\mathbf{u}) \, d\mathbf{u} = \mu_2(K) \mathbf{I}_d$$
+*(con $\mu_2(K) > 0$)*
+
+Analíticamente, existen dos metodologías principales para construir una función $K(\mathbf{u})$ que satisfaga estos axiomas a partir de núcleos univariantes conocidos:
+
+**A. Núcleos Producto**
+
+Se obtienen multiplicando $d$ funciones núcleo univariantes independientes evaluadas en cada componente direccional del vector $\mathbf{u} = (u_1, \dots, u_d)^T$:
+$$\mathcal{K}^P(\mathbf{u}) = \prod_{j=1}^d K(u_j)$$
+Aunque destacan por su eficiencia computacional, los núcleos producto no distribuyen el suavizado de manera uniforme en todas las direcciones.
+
+**B. Núcleos de Simetría Esférica**
+
+Constituyen la opción preferente en el análisis multivariante moderno. Se construyen de forma que el valor del núcleo dependa exclusivamente de la norma euclídea del vector $\|\mathbf{u}\|$. Se definen como:
+$$K^S(\mathbf{u}) = c_d \, g(\mathbf{u}^T\mathbf{u})$$
+donde $g(\cdot)$ es una función generatriz no negativa y $c_d$ es una constante de normalización dependiente de la dimensión. El caso paradigmático es el núcleo normal multivariante estándar, donde $g(t) = \exp(-t/2)$ y $c_d = (2\pi)^{-d/2}$. Este núcleo posee la propiedad única de ser simultáneamente un núcleo producto y un núcleo de simetría esférica, garantizando una invarianza rotacional perfecta.
+
+\vspace{0.4cm}
+\noindent \textbf{Ilustración Gráfica de la Topología del Núcleo.}\
+
+Para comprender la geometría del estimador antes de aplicar las transformaciones de la matriz $\mathbf{H}$ (es decir, asumiendo $\mathbf{H} = \mathbf{I}_2$), la Figura \ref{fig:nucleo-bivariante-1} ilustra el comportamiento espacial del núcleo Gaussiano bivariante. La vista en perspectiva (izquierda) muestra la clásica campana tridimensional, mientras que el mapa de contorno (derecha) evidencia su perfecta simetría esférica, proyectando curvas de nivel que forman circunferencias concéntricas en el dominio $\mathbb{R}^2$.
+
+```{r nucleo-bivariante, fig.cap="Topología del núcleo Gaussiano bivariante estándar: Superficie en perspectiva (izquierda) y curvas de nivel (derecha).", fig.width=10, fig.height=5}
+par(mfrow = c(1, 2), mar = c(4, 4, 2, 1))
+x <- seq(-3, 3, length.out = 50)
+y <- seq(-3, 3, length.out = 50)
+
+kernel_bivariante <- function(x, y) {
+  (1 / (2 * pi)) * exp(-0.5 * (x^2 + y^2))
+}
+z <- outer(x, y, kernel_bivariante)
+nrz <- nrow(z); ncz <- ncol(z)
+jet.colors <- colorRampPalette(c("dodgerblue", "cyan", "green", "yellow", "red"))
+nbcol <- 100; color <- jet.colors(nbcol)
+zfacet <- z[-1, -1] + z[-1, -ncz] + z[-nrz, -1] + z[-nrz, -ncz]
+facetcol <- cut(zfacet, nbcol)
+persp(x, y, z, theta = 30, phi = 30, expand = 0.6,
+      col = color[facetcol], ltheta = 120, shade = 0.75,
+      ticktype = "detailed", xlab = "X1", ylab = "X2", zlab = "K(u)",
+      main = "Superficie 3D")
+contour(x, y, z, nlevels = 10, col = "darkblue", lwd = 1.5,
+        xlab = "X1", ylab = "X2", main = "Curvas de Nivel (Contorno)")
+filled.contour(x, y, z, color.palette = jet.colors, 
+               plot.title = title(main = "Curvas de Nivel"),
+               plot.axes = {axis(1); axis(2); 
+               contour(x, y, z, add = TRUE, col = "black", lwd = 0.5)})
+
+par(mfrow = c(1, 1))
+```
+
+
+## Tipos de Matrices de Anchos de Banda ($\mathbf{H}$) \label{sec: tiposdeh}
+
+El rendimiento asintótico y la flexibilidad geométrica del estimador multivariante dependen críticamente de la parametrización de la matriz de ancho de banda $\mathbf{H}$. En el dominio de $\mathbb{R}^d$, denotamos por $\mathcal{H}$ al espacio de todas las matrices simétricas y definidas positivas de dimensión $d \times d$. 
+
+La selección de $\mathbf{H} \in \mathcal{H}$ implica un compromiso fundamental entre la flexibilidad topológica del estimador y la complejidad computacional derivada de la optimización de sus parámetros. Se suele clasificar el espacio $\mathcal{H}$ en tres subespacios paramétricos anidados, $\mathcal{H}_S \subset \mathcal{H}_D \subset \mathcal{H}_F$, cada uno con propiedades geométricas y algebraicas distintivas.
+
+### Matrices Escalares (Clase $\mathcal{H}_S$)
+
+El subespacio más restrictivo se basa en un único parámetro escalar, lo que impone un nivel de suavizado idéntico y uniforme en todas las direcciones del espacio. Analíticamente, la matriz adopta la forma:
+$$\mathcal{H}_S = \{ \mathbf{H} = h^2 \mathbf{I}_d : h > 0 \}$$
+donde $\mathbf{I}_d$ es la matriz identidad de orden $d$ y $h$ es un escalar estrictamente positivo. 
+
+Esta formulación posee un único grado de libertad. Geométricamente, obliga a que las curvas de nivel del núcleo reescalado $K_{\mathbf{H}}$ sean hiperesferas perfectas. Si bien su optimización es computacionalmente trivial (equivalente al caso univariante), su uso práctico está desaconsejado salvo que los datos hayan sido previamente estandarizados (esferizados), puesto que es incapaz de adaptarse a variables con diferentes escalas de medida o varianzas marginales.
+
+### Matrices Diagonales (Clase $\mathcal{H}_D$)
+
+Para superar la rigidez del suavizado isotrópico, se introduce el subespacio de matrices diagonales, el cual permite distintos niveles de dispersión para cada dimensión coordenativa:
+$$\mathcal{H}_D = \{ \mathbf{H} = \text{diag}(h_1^2, h_2^2, \dots, h_d^2) : h_j > 0 \quad \forall j=1,\dots,d \}$$
+
+Esta estructura cuenta con $d$ parámetros libres. Geométricamente, transforma las hiperesferas del núcleo en hiperelipsoides. Sin embargo, los ejes principales de estos elipsoides están estrictamente forzados a ser paralelos a los ejes coordenados. Esta ortogonalidad geométrica implica que el estimador asume implícitamente independencia local entre las variables, siendo ciego ante cualquier estructura de correlación lineal subyacente en la distribución conjunta $f(\mathbf{x})$.
+
+### Matrices Completas o Sin Restricciones (Clase $\mathcal{H}_F$)
+
+El paradigma más general y robusto asume que $\mathbf{H}$ pertenece al espacio completo $\mathcal{H}_F \equiv \mathcal{H}$. Esta matriz cuenta con $\frac{1}{2}d(d+1)$ parámetros libres (varianzas en la diagonal y covarianzas en los elementos extradiagonales).
+
+Para comprender la ventaja que aporta esta clase, se aplica el Teorema Espectral. Dada su naturaleza simétrica y definida positiva, toda matriz $\mathbf{H} \in \mathcal{H}_F$ admite una descomposición propia de la forma:
+$$\mathbf{H} = \mathbf{U} \mathbf{\Lambda} \mathbf{U}^T$$
+donde $\mathbf{\Lambda} = \text{diag}(\lambda_1, \dots, \lambda_d)$ es la matriz diagonal de autovalores (con $\lambda_j > 0$) y $\mathbf{U}$ es una matriz ortogonal ($\mathbf{U}^T\mathbf{U} = \mathbf{I}_d$) cuyas columnas son los autovectores normalizados. 
+
+Bajo esta descomposición, la transformación geométrica del núcleo multivariante se divide en dos fases analíticas puras:
+
+1. **Escalamiento anisotrópico:** La matriz $\mathbf{\Lambda}^{1/2}$ deforma el núcleo esférico estirándolo a lo largo de los ejes coordenados en proporción a $\sqrt{\lambda_j}$.
+2. **Rotación espacial:** La matriz ortogonal $\mathbf{U}$ aplica una rotación rígida al elipsoide resultante, alineando sus ejes principales con las direcciones de máxima varianza local de los datos.
+
+Esta capacidad de rotación es indispensable cuando las variables exhiben fuerte correlación, permitiendo que la masa de probabilidad se difunda a lo largo de la "cresta" de los datos, evitando tanto el sobresuavizado en las regiones vacías como el infrasuavizado en las regiones densas.
+
+\vspace{0.4cm}
+\noindent \textbf{Análisis Visual de los Subespacios Paramétricos.}
+
+Para ilustrar estos conceptos algebraicos, la Figura \ref{fig:tipos-matrices} presenta la huella de probabilidad de un núcleo Gaussiano bivariante bajo los tres regímenes de suavizado. Observe cómo solo la matriz completa (derecha) es capaz de orientar su masa de probabilidad en un ángulo oblicuo, capturando las dependencias diagonales.
+
+```{r tipos-matrices, echo=FALSE, fig.cap="Curvas de nivel del núcleo Gaussiano reescalado $K_{\\mathbf{H}}$ evaluado en el origen bajo los tres subespacios matriciales.", fig.width=12, fig.height=4.5}
+par(mfrow = c(1, 3), mar = c(4, 4, 3, 1))
+x <- seq(-4, 4, length.out = 100)
+y <- seq(-4, 4, length.out = 100)
+grid <- expand.grid(x = x, y = y)
+
+calc_density <- function(grid, H) {
+  inv_H <- solve(H)
+  det_H <- det(H)
+  maha_dist <- apply(grid, 1, function(row) {
+    as.numeric(t(row) %*% inv_H %*% row)
+  })
+  dens <- (1 / (2 * pi * sqrt(det_H))) * exp(-0.5 * maha_dist)
+  matrix(dens, nrow = length(x), ncol = length(y))
+}
+
+H_S <- matrix(c(1, 0, 0, 1), nrow = 2)
+z_S <- calc_density(grid, H_S)
+contour(x, y, z_S, nlevels = 8, col = "blue", lwd = 1.5,
+        xlab = "X1", ylab = "X2", main = expression(paste("Escalar (", 
+        mathcal(H)[S], "): ", H == h^2*I)))
+abline(h = 0, v = 0, col = "gray80", lty = 2)
+
+H_D <- matrix(c(3, 0, 0, 0.5), nrow = 2)
+z_D <- calc_density(grid, H_D)
+contour(x, y, z_D, nlevels = 8, col = "darkgreen", lwd = 1.5,
+        xlab = "X1", ylab = "X2", main = expression(paste("Diagonal (", 
+        mathcal(H)[D], "): ", H == diag(h[1]^2, h[2]^2))))
+abline(h = 0, v = 0, col = "gray80", lty = 2)
+
+H_F <- matrix(c(3, 1.8, 1.8, 1.5), nrow = 2)
+z_F <- calc_density(grid, H_F)
+contour(x, y, z_F, nlevels = 8, col = "firebrick", lwd = 1.5,
+        xlab = "X1", ylab = "X2", main = expression(paste("Completa (", 
+        mathcal(H)[F], "): ", H == U*Lambda*U^T)))
+abline(h = 0, v = 0, col = "gray80", lty = 2)
+
+par(mfrow = c(1, 1))
+```
+
+## Propiedades Asintóticas y el AMISE Multivariante \label{sec:propiedades-asintoticas-multivariante}
+
+Para evaluar el rendimiento analítico del estimador multivariante $\hat{f}_{\mathbf{H}}(\mathbf{x})$, es necesario generalizar las propiedades asintóticas del caso univariante al espacio $\mathbb{R}^d$. Esto requiere el uso de cálculo diferencial matricial para expandir la verdadera función de densidad $f$ en serie de Taylor alrededor de $\mathbf{x}$. 
+
+Asumiremos que los elementos de $\mathbf{H}$ tienden a cero cuando $n \to \infty$, y que $n|\mathbf{H}|^{1/2} \to \infty$, garantizando que la ventana de suavizado colapse y al mismo tiempo contenga un número asintóticamente infinito de observaciones. Además, denotaremos por $\nabla f(\mathbf{x})$ al vector gradiente ($d \times 1$) y por $\boldsymbol{\mathcal{H}}_f(\mathbf{x})$ a la matriz Hessiana ($d \times d$) de las segundas derivadas parciales de $f$.
+
+### Esperanza y Sesgo Asintótico
+
+La esperanza matemática del estimador en un punto fijo $\mathbf{x} \in \mathbb{R}^d$ viene dada por la convolución del núcleo reescalado con la verdadera densidad:
+
+$$E[\hat{f}_{\mathbf{H}}(\mathbf{x})] = \int_{\mathbb{R}^d} K_{\mathbf{H}}(\mathbf{x} - \mathbf{y}) f(\mathbf{y}) \, d\mathbf{y}$$
+
+Aplicando el cambio de variable $\mathbf{u} = \mathbf{H}^{-1/2}(\mathbf{x} - \mathbf{y})$, con el correspondiente jacobiano $d\mathbf{y} = |\mathbf{H}|^{1/2} d\mathbf{u}$, la expresión se transforma en:
+
+$$E[\hat{f}_{\mathbf{H}}(\mathbf{x})] = \int_{\mathbb{R}^d} K(\mathbf{u}) f(\mathbf{x} - \mathbf{H}^{1/2}\mathbf{u}) \, d\mathbf{u}$$
+
+Para aislar el sesgo, desarrollamos $f(\mathbf{x} - \mathbf{H}^{1/2}\mathbf{u})$ mediante una serie de Taylor multivariante de segundo orden:
+
+$$f(\mathbf{x} - \mathbf{H}^{1/2}\mathbf{u}) = f(\mathbf{x}) - (\mathbf{H}^{1/2}\mathbf{u})^T \nabla f(\mathbf{x}) + \frac{1}{2} (\mathbf{H}^{1/2}\mathbf{u})^T \boldsymbol{\mathcal{H}}_f(\mathbf{x}) (\mathbf{H}^{1/2}\mathbf{u}) + o(\text{tr}(\mathbf{H}))$$
+
+Al multiplicar por $K(\mathbf{u})$ e integrar término a término, explotamos las propiedades topológicas del núcleo definidas en la sección \ref{sec: definicionenrd}:
+
+* El término lineal se anula por la simetría esférica del núcleo ($\int \mathbf{u} K(\mathbf{u}) d\mathbf{u} = \mathbf{0}$).
+* En el término cuadrático, reordenamos los factores aplicando la propiedad cíclica de la traza matricial: $\mathbf{u}^T \mathbf{H}^{1/2} \boldsymbol{\mathcal{H}}_f(\mathbf{x}) \mathbf{H}^{1/2} \mathbf{u} = \text{tr}(\mathbf{H} \boldsymbol{\mathcal{H}}_f(\mathbf{x}) \mathbf{u}\mathbf{u}^T)$.
+
+Dado que $\int \mathbf{u}\mathbf{u}^T K(\mathbf{u}) d\mathbf{u} = \mu_2(K) \mathbf{I}_d$, el sesgo asintótico queda compactado mediante el operador traza:
+
+$$\text{ABias}(\hat{f}_{\mathbf{H}}(\mathbf{x})) = \frac{1}{2} \mu_2(K) \text{tr}(\mathbf{H} \boldsymbol{\mathcal{H}}_f(\mathbf{x}))$$
+
+Esta ecuación revela que, en múltiples dimensiones, el sesgo local no depende de un simple factor de curvatura, sino de la interacción geométrica (producto interno definido por la traza) entre la matriz de suavizado $\mathbf{H}$ y la matriz de curvaturas locales $\boldsymbol{\mathcal{H}}_f(\mathbf{x})$.
+
+### Varianza Asintótica
+
+La deducción de la varianza sigue una lógica análoga. Partiendo de $\text{Var}(\hat{f}_{\mathbf{H}}(\mathbf{x})) = \frac{1}{n} \text{Var}(K_{\mathbf{H}}(\mathbf{x} - \mathbf{X}_1))$, el término dominante se obtiene al integrar el cuadrado del núcleo reescalado:
+
+$$\text{AVar}(\hat{f}_{\mathbf{H}}(\mathbf{x})) = \frac{1}{n |\mathbf{H}|^{1/2}} f(\mathbf{x}) \int_{\mathbb{R}^d} K^2(\mathbf{u}) \, d\mathbf{u} = \frac{1}{n |\mathbf{H}|^{1/2}} R(K) f(\mathbf{x})$$
+
+donde $R(K)$ es la rugosidad escalar del núcleo. Es vital observar que la varianza penaliza fuertemente a través del factor $|\mathbf{H}|^{-1/2}$, lo que prefigura la vulnerabilidad del estimador ante el incremento de la dimensionalidad $d$.
+
+### El AMISE Multivariante: Vectorización y Producto de Kronecker
+
+La medida global de precisión es el Error Cuadrático Medio Integrado Asintótico (AMISE). Se define como la integral sobre todo $\mathbb{R}^d$ de la suma de la varianza asintótica y el sesgo asintótico al cuadrado:
+
+$$\text{AMISE}(\mathbf{H}) = \int_{\mathbb{R}^d} \text{AVar}(\hat{f}_{\mathbf{H}}(\mathbf{x})) \, d\mathbf{x} + \int_{\mathbb{R}^d} \text{ABias}^2(\hat{f}_{\mathbf{H}}(\mathbf{x})) \, d\mathbf{x}$$
+
+El término integrado de la varianza (AIV) es directo, dado que $\int f(\mathbf{x}) d\mathbf{x} = 1$:
+
+$$\text{AIV}(\mathbf{H}) = n^{-1} |\mathbf{H}|^{-1/2} R(K)$$
+
+El desafío analítico reside en el Sesgo Cuadrático Integrado Asintótico (AISB):
+
+$$\text{AISB}(\mathbf{H}) = \frac{1}{4} \mu_2^2(K) \int_{\mathbb{R}^d} \left[ \text{tr}(\mathbf{H} \boldsymbol{\mathcal{H}}_f(\mathbf{x})) \right]^2 \, d\mathbf{x}$$
+
+Integrar el cuadrado de una traza que involucra matrices dependientes de la posición es algebraicamente intratable. Para resolver este obstáculo, se puede recurrir al álgebra tensorial moderna, utilizando el operador de vectorización $\text{vec}(\cdot)$, el cual apila las columnas de una matriz en un vector columna único, y la identidad fundamental de la traza: $\text{tr}(\mathbf{A}^T\mathbf{B}) = \text{vec}(\mathbf{A})^T \text{vec}(\mathbf{B})$.
+
+Puesto que $\mathbf{H}$ y $\boldsymbol{\mathcal{H}}_f(\mathbf{x})$ son matrices simétricas, la expresión dentro de la integral se puede reescribir algebraicamente como un producto escalar de vectores:
+
+$$\left[ \text{tr}(\mathbf{H} \boldsymbol{\mathcal{H}}_f(\mathbf{x})) \right]^2 = \left[ \text{vec}^T(\mathbf{H}) \text{vec}(\boldsymbol{\mathcal{H}}_f(\mathbf{x})) \right]^2 = \text{vec}^T(\mathbf{H}) \left[ \text{vec}(\boldsymbol{\mathcal{H}}_f(\mathbf{x})) \text{vec}^T(\boldsymbol{\mathcal{H}}_f(\mathbf{x})) \right] \text{vec}(\mathbf{H})$$
+
+Esta manipulación matricial permite extraer la matriz de ancho de banda $\mathbf{H}$ fuera de la integral, definiendo una matriz de funcionales de densidad $\boldsymbol{\Psi}_4$ de dimensión $d^2 \times d^2$:
+
+$$\boldsymbol{\Psi}_4 = \int_{\mathbb{R}^d} \text{vec}(\boldsymbol{\mathcal{H}}_f(\mathbf{x})) \text{vec}^T(\boldsymbol{\mathcal{H}}_f(\mathbf{x})) \, d\mathbf{x}$$
+
+Esta formulación compacta el AMISE en su expresión matricial definitiva, conformando el pilar sobre el cual se edifican todos los métodos modernos de selección del ancho de banda multivariante (*Plug-in* y Validación Cruzada):
+
+$$\text{AMISE}(\mathbf{H}) = \underbrace{n^{-1} |\mathbf{H}|^{-1/2} R(K)}_{\text{Varianza Global}} + \underbrace{\frac{1}{4} \mu_2^2(K) \, \text{vec}^T(\mathbf{H}) \boldsymbol{\Psi}_4 \text{vec}(\mathbf{H})}_{\text{Sesgo Cuadrático Global}}$$
+
+```{r amise-superficie, echo=FALSE, fig.cap="Superficie convexa del funcional de riesgo AMISE en $\\mathbb{R}^2$ bajo un régimen de matriz diagonal $\\mathbf{H} = \\text{diag}(h_1^2, h_2^2)$ para $n=500$. El punto de profundidad máxima representa los anchos de banda óptimos asintóticos.", fig.width=8, fig.height=6}
+n <- 500
+R_K <- 1 / (4 * pi)
+mu2_K <- 1
+h1_seq <- seq(0.15, 0.8, length.out = 40)
+h2_seq <- seq(0.15, 0.8, length.out = 40)
+
+calc_amise_biv <- function(h1, h2, n_obs) {
+  var_term <- R_K / (n_obs * h1 * h2)
+  bias_term <- (1 / (32 * pi)) * (3 * h1^4 + 3 * h2^4 + 2 * (h1^2) * (h2^2))
+  return(var_term + bias_term)
+}
+
+amise_matrix <- outer(h1_seq, h2_seq, calc_amise_biv, n_obs = n)
+min_indices <- which(amise_matrix == min(amise_matrix), arr.ind = TRUE)
+h1_opt <- h1_seq[min_indices[1, 1]]
+h2_opt <- h2_seq[min_indices[1, 2]]
+amise_min <- min(amise_matrix)
+
+jet.colors <- colorRampPalette(c("dodgerblue", "cyan", "green", "yellow", "red"))
+nbcol <- 100
+color <- jet.colors(nbcol)
+nrz <- nrow(amise_matrix); ncz <- ncol(amise_matrix)
+zfacet <- amise_matrix[-1, -1] + amise_matrix[-1, -ncz] + 
+          amise_matrix[-nrz, -1] + amise_matrix[-nrz, -ncz]
+facetcol <- cut(zfacet, nbcol)
+
+par(mar=c(2, 2, 2, 1))
+res <- persp(h1_seq, h2_seq, amise_matrix, theta = 45, phi = 25, expand = 0.6,
+             col = color[facetcol], ltheta = 120, shade = 0.75, border = NA,
+             ticktype = "detailed", xlab = "h1", ylab = "h2", zlab = "AMISE(H)",
+             main = "Superficie de Error AMISE Multivariante")
+
+opt_point <- trans3d(h1_opt, h2_opt, amise_min, pmat = res)
+points(opt_point, pch = 16, col = "black", cex = 1.5)
+lines(trans3d(c(h1_opt, h1_opt), c(h2_opt, h2_opt), c(min(amise_matrix), 
+max(amise_matrix)), pmat = res), 
+      col = "black", lwd = 2, lty = 2)
+```
+
+## La Maldición de la Dimensionalidad
+
+El marco teórico desarrollado en las secciones precedentes demuestra que la estimación de densidad multivariante es algebraicamente posible y topológicamente coherente. Sin embargo, la implementación práctica de estos estimadores se enfrenta a una barrera fundamental inherente a la geometría de los espacios euclídeos de alta dimensión: el fenómeno conocido como la maldición de la dimensionalidad.
+
+Este concepto describe cómo la vacuidad del espacio crece exponencialmente al aumentar el número de variables $d$, provocando que los datos se vuelvan extremadamente dispersos. Matemáticamente, este deterioro se manifiesta de forma directa en la tasa de convergencia asintótica del estimador.
+
+### Tasa de Convergencia del AMISE
+
+Para analizar el impacto de la dimensión $d$ en el error global, simplificaremos temporalmente el problema asumiendo una parametrización escalar isotrópica $\mathbf{H} = h^2 \mathbf{I}_d$. Bajo este régimen restrictivo, el determinante de la matriz es $|\mathbf{H}| = (h^2)^d = h^{2d}$, y su raíz cuadrada inversa es $|\mathbf{H}|^{-1/2} = h^{-d}$. 
+
+Sustituyendo esto en la ecuación fundamental del AMISE deducida en la Sección \ref{sec:propiedades-asintoticas-multivariante}, obtenemos las tasas de orden de convergencia ($O$) para la varianza y el sesgo cuadrado:
+
+$$\text{AMISE}(h) = O(n^{-1} h^{-d}) + O(h^4)$$
+
+Para encontrar el orden de magnitud del parámetro de suavizado óptimo $h_{opt}$, derivamos la expresión respecto a $h$ e igualamos a cero, lo que implica equilibrar el decaimiento de la varianza con el crecimiento del sesgo:
+
+$$n^{-1} h^{-d} \asymp h^4 \implies h_{opt} \asymp n^{-\frac{1}{d+4}}$$
+
+Sustituyendo este $h_{opt}$ óptimo de vuelta en la ecuación del error, hallamos la cota inferior para la tasa de convergencia óptima del AMISE:
+
+$$\text{AMISE}(h_{opt}) = O\left( n^{-\frac{4}{d+4}} \right)$$
+
+### El Colapso Asintótico
+
+La ecuación de la convergencia revela la extrema severidad de la maldición de la dimensionalidad. En el caso univariante ($d=1$), el error decae a una velocidad de $O(n^{-4/5})$. Sin embargo, a medida que $d \to \infty$, el exponente converge a cero:
+
+$$\lim_{d \to \infty} \left( -\frac{4}{d+4} \right) = 0$$
+
+Esto implica que, en espacios de alta dimensión, el error se vuelve prácticamente insensible al tamaño de la muestra $n$. La varianza del estimador domina por completo, puesto que el vecindario local definido por el núcleo multivariante $K_{\mathbf{H}}$ estará asintóticamente vacío, obligando al algoritmo a sobresuavizar (aumentar $h$) dramáticamente para encontrar masa de probabilidad, lo que a su vez destruye cualquier intento de capturar la verdadera estructura local (aumentando el sesgo).
+
+\vspace{0.4cm}
+
+\noindent \textbf{Ilustración Numérica de la Explosión Muestral.}
+
+Para cuantificar este fenómeno en términos reales, la Tabla \ref{tab:maldicion-silverman} reproduce el resultado analítico de @silverman1986. La tabla muestra el tamaño muestral $n$ estrictamente necesario para garantizar que el Error Cuadrático Medio Relativo en el origen (asumiendo una verdadera distribución normal multivariante estándar) sea inferior al 10%. 
+
+```{r maldicion-silverman, echo=FALSE}
+dimensiones <- 1:10
+n_requerido <- c(4, 19, 67, 223, 768, 2790, 10700, 43700, 187000, 842000)
+
+tabla_silverman <- data.frame(
+  "Dimensión (d)" = dimensiones,
+  "Tamaño Muestral (n)" = format(n_requerido, big.mark = ".", scientific = FALSE)
+)
+
+knitr::kable(tabla_silverman, 
+            format="latex",
+            caption = "Tamaño muestral necesario para mantener un MSE relativo 
+            < 0.1 en el origen bajo una distribución Normal estándar.",
+            align = c('c', 'c'),
+            booktabs = TRUE)
+```
+
+```{r maldicion-grafico, echo=FALSE, fig.cap="Curva de crecimiento del tamaño muestral requerido para mantener un error relativo constante a medida que aumenta la dimensión. La escala es logarítmica para evidenciar la explosión exponencial.", fig.width=8, fig.height=5}
+par(mfrow = c(1, 2), mar = c(4, 4, 3, 1))
+dimensiones <- 1:10
+n_requerido <- c(4, 19, 67, 223, 768, 2790, 10700, 43700, 187000, 842000)
+
+plot(dimensiones, n_requerido, type = "b", pch = 19, col = "firebrick", lwd = 2,
+     log = "y", xaxt = "n", yaxt = "n",
+     xlab = "Dimensión del espacio (d)", 
+     ylab = "Tamaño muestral (n) [Escala Logarítmica]",
+     main = "Explosión del Tamaño Muestral")
+
+axis(1, at = 1:10)
+axis(2, at = 10^(0:6), labels = expression(10^0, 10^1, 10^2, 10^3, 10^4, 
+10^5, 10^6), las=1)
+grid(nx = NA, ny = NULL, col = "gray85", lty = 3)
+abline(v = dimensiones, col = "gray85", lty = 3)
+tasa_convergencia <- 4 / (dimensiones + 4)
+
+plot(dimensiones, tasa_convergencia, type = "b", pch = 15, col = "dodgerblue4", 
+    lwd = 2, ylim = c(0, 0.9), xaxt = "n",
+    xlab = "Dimensión del espacio (d)", 
+    ylab = expression(paste("Exponente óptimo  ", alpha)),
+    main = expression(paste("Degradación de la Tasa ", O(n^{-alpha}))))
+
+axis(1, at = 1:10)
+abline(h = 0, col = "red", lty = 2, lwd = 2) 
+grid(col = "gray85", lty = 3)
+
+par(mfrow = c(1, 1))
+```
+
+\newpage
+
+# Aplicación Práctica: Análisis del S&P 500 {#capitulo7}
+
+Tal y como se introdujo en la motivación de este trabajo, los mercados financieros constituyen un escenario idóneo para la aplicación de técnicas de inferencia no paramétrica. Históricamente, la modelización financiera ha dependido del supuesto de normalidad para caracterizar la distribución de los rendimientos de los activos. Sin embargo, la evidencia empírica sugiere que las series financieras exhiben comportamientos topológicos complejos, tales como asimetrías y colas pesadas, que los modelos gaussianos son incapaces de capturar.
+
+El objetivo de este capítulo es demostrar esa falta de normalidad, aplicar el estimador de densidad tipo núcleo a los datos empíricos del índice Standard & Poor's 500 (S&P 500) para revelar la verdadera estructura subyacente de su distribución, y ver qué mejoras puede implicar esta nueva adopción más exacta.
+
+Se precisa que, si bien el desarrollo teórico previo asume observaciones independientes e idénticamente distribuidas (i.i.d.), en el análisis de series financieras esta premisa se relaja. Bajo condiciones de estacionariedad y dependencia débil, el estimador KDE conserva su consistencia asintótica para caracterizar la densidad marginal incondicional, permitiendo una captura válida de la morfología global de los rendimientos.
+
+## Descripción y Obtención de los Datos
+
+Para llevar a cabo este análisis, emplearemos la serie histórica de precios diarios de cierre del índice S&P 500 extraída mediante la librería `tidyquant`. Una vez obtenidos los precios, calculamos los rendimientos diarios discretos como la tasa de variación del precio de cierre respecto al día inmediatamente anterior.
+
+```{r obtencion-datos, warning=FALSE, message=FALSE}
+library(tidyquant)
+library(dplyr)
+
+sp500_data <- tq_get("^GSPC", 
+                     get  = "stock.prices", 
+                     from = "1980-01-01")
+sp500_data <- sp500_data %>%
+  arrange(date) %>%
+  mutate(daily_return = (close / lag(close)) - 1)
+sp500_plot <- na.omit(sp500_data)
+print(range(sp500_plot$date))
+```
+
+## Análisis Exploratorio y Contraste de Normalidad
+
+Antes de estimar la densidad mediante métodos no paramétricos, verificamos estadísticamente si el supuesto de normalidad se sostiene sobre nuestra muestra empírica. Para ello, analizamos los momentos centrales de orden superior: la asimetría y la curtosis.
+
+```{r momentos-estadisticos, warning=FALSE, message=FALSE}
+library(moments)
+asimetria <- skewness(sp500_plot$daily_return)
+curtosis  <- kurtosis(sp500_plot$daily_return)
+print(paste("Asimetría (Normal = 0):", round(asimetria, 4)))
+print(paste("Curtosis (Normal = 3): ", round(curtosis, 4)))
+```
+
+Los resultados empíricos evidencian una clara desviación estructural respecto al modelo gaussiano. Observamos una curtosis marcadamente superior a 3 (leptocurtosis) y una asimetría negativa. Para formalizar esta observación, aplicamos el contraste de Jarque-Bera.
+
+```{r test-jarque-bera, warning=FALSE, message=FALSE}
+library(tseries)
+jarque.bera.test(sp500_plot$daily_return)
+```
+
+Dado que el p-valor es computacionalmente cero, rechazamos categóricamente la hipótesis nula de normalidad. Este resultado justifica plenamente la necesidad de abandonar el enfoque paramétrico clásico en favor de la estimación KDE.
+
+## Estimación de la Densidad Global
+
+Para visualizar el comportamiento diagnosticado por los tests estadísticos, procedemos a graficar el histograma de los rendimientos diarios, superponiendo dos curvas de ajuste: una curva paramétrica Normal (línea discontinua roja) y la curva estimada mediante el KDE (línea continua naranja).
+
+```{r plot-densidad-global, fig.cap="Comparativa entre ajuste Normal (Rojo) y KDE (Naranja).", fig.align='center', out.width="85%", warning=FALSE}
+library(ggplot2)
+
+mean_val <- mean(sp500_plot$daily_return)
+sd_val   <- sd(sp500_plot$daily_return)
+
+ggplot(sp500_plot, aes(x = daily_return)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 100, fill = "#69b3a2",
+  alpha = 0.6) +  stat_function(fun = dnorm, args = list(mean = mean_val, 
+  sd = sd_val), color = "red", linetype = "dashed", linewidth = 0.8) +
+  geom_density(color = "orange", linewidth = 0.8) +
+  coord_cartesian(xlim = c(-0.08, 0.08)) +
+  theme_minimal() +
+  labs(x = "Rendimiento", y = "Densidad")
+```
+
+La visualización conjunta del histograma con las curvas  de ajuste revela una discrepancia estructural profunda entre la distribución empírica de los rendimientos y el modelo teórico gaussiano. Mientras que la curva Normal (roja) presenta una forma acampanada con una dispersión suavizada, el estimador KDE (naranja) logra capturar con precisión la morfología real de los datos, caracterizada por un pico central significativamente más agudo y estrecho. 
+
+Esta acumulación excesiva de masa de probabilidad alrededor de la media, combinada con la presencia de observaciones en las colas que la Normal es incapaz de cubrir, constituye una evidencia visual directa de leptocurtosis. El uso del KDE permite así corregir el sesgo de especificación que introduciría un modelo paramétrico, el cual subestimaría la frecuencia de los rendimientos centrales al tiempo que ignoraría la gravedad de las fluctuaciones extremas presentes en la serie histórica del S&P 500.
+
+## Análisis del Riesgo en la Cola Izquierda
+
+La divergencia más crítica ocurre en los extremos de la distribución. Ampliamos la visualización sobre la cola izquierda para observar el comportamiento ante pérdidas extremas.
+
+```{r plot-cola-izquierda, fig.cap="Detalle de la cola izquierda (pérdidas extremas).", fig.align='center', out.width="85%", warning=FALSE}
+ggplot(sp500_plot, aes(x = daily_return)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 1000, 
+  fill = "#69b3a2", alpha = 0.6) +
+  stat_function(fun = dnorm, args = list(mean = mean_val, sd = sd_val), 
+                color = "red", linetype = "dashed", linewidth = 0.8) +
+  geom_density(color = "orange", linewidth = 0.8) +
+  coord_cartesian(xlim = c(-0.07, -0.015), ylim = c(0, 8)) +
+  theme_minimal() +
+  labs(x = "Rendimiento", y = "Densidad")
+```
+
+La ampliación de la cola izquierda de la distribución valida visualmente la insuficiencia del paradigma paramétrico gaussiano frente a la realidad de los mercados financieros. Mientras que la curva Normal (roja) colapsa rápidamente hacia cero, ignorando la masa de probabilidad de los eventos extremos, el estimador KDE (naranja) logra capturar con precisión la persistencia de los rendimientos negativos observados en el histograma. 
+
+Esta discrepancia evidencia que la distribución real de los rendimientos del S&P 500 posee colas mucho más pesadas de lo que predice una campana de Gauss, confirmando la existencia de la leptocurtosis detectada en los tests estadísticos previos. Al no imponer una forma funcional rígida, el KDE permite que la propia muestra revele la frecuencia de estos "cisnes negros", demostrando que los modelos tradicionales subestiman sistemáticamente la probabilidad de caídas severas en el mercado.
+
+## Sensibilidad del Estimador al Ancho de Banda
+
+Como se analizó en el [Capítulo 5](#capitulo5), la elección del parámetro $h$ es el factor más crítico en la estimación tipo núcleo. Para los datos del S&P 500, compararemos la Regla de Referencia de Silverman frente al método de Sheather-Jones (SJ). 
+
+Al aplicar el algoritmo *Plug-in* directo (SJ) sobre series empíricas financieras, surge un desafío computacional: los rendimientos presentan empates exactos debido al redondeo de los precios subyacentes, lo que viola el supuesto de continuidad absoluta y provoca el colapso numérico de las integrales de derivadas. Para solventarlo, se perturba infinitesimalmente la muestra (mediante *jitter*) exclusivamente durante el cálculo del ancho de banda, garantizando la convergencia del algoritmo.
+
+```{r comparativa-h, fig.cap="Impacto de la selección del ancho de banda en la estimación de la densidad del S\\&P 500.", fig.align='center', out.width="85%", warning=FALSE}
+library(ggplot2)
+
+h_silverman <- bw.nrd0(sp500_plot$daily_return)
+h_sj <- bw.SJ(jitter(sp500_plot$daily_return, amount = 1e-6))
+
+ggplot(sp500_plot, aes(x = daily_return)) +
+  geom_density(aes(color = "Silverman (nrd0)"), bw = h_silverman, linewidth = 0.8) +
+  geom_density(aes(color = "Sheather-Jones (SJ)"), bw = h_sj, linewidth = 0.8) +
+  coord_cartesian(xlim = c(-0.04, 0.04)) +
+  scale_color_manual(values = c("Silverman (nrd0)" = "blue", 
+                                "Sheather-Jones (SJ)" = "darkgreen")) +
+  theme_minimal() +
+  theme(legend.position = "bottom") +
+  labs(subtitle = paste("h (Silverman) =", round(h_silverman, 5), 
+                        "| h (SJ) =", round(h_sj, 5)),
+       x = "Rendimiento Diario", 
+       y = "Densidad", 
+       color = "Método")
+```
+
+### Comentario sobre la selección de h
+
+Los resultados empíricos arrojan valores de $h_{Silverman} \approx 0.00106$ y $h_{SJ} \approx 0.00073$. A nivel visual, ambas curvas presentan una morfología sumamente similar, lo que merece una interpretación a la luz del marco teórico. 
+
+El hecho de que la regla de Silverman logre un desempeño tan competitivo y no colapse hacia un sobre-suavizado extremo se debe a su implementación robusta. En lugar de depender exclusivamente de la desviación típica muestral (la cual está inflada por las colas pesadas de las crisis financieras), el algoritmo evalúa la dispersión central mediante el Rango Intercuartílico (IQR). Al estar la masa principal del S&P 500 fuertemente concentrada alrededor del cero, el IQR resulta ser un valor muy reducido, forzando al algoritmo a seleccionar un ancho de banda pequeño que logra capturar el pico central.
+
+A pesar de esta robustez paramétrica, el algoritmo directo de Sheather-Jones sigue seleccionando un parámetro de suavizado aproximadamente un 30% inferior. Esta diferencia, aunque sutil en la gráfica global, ratifica la capacidad del método SJ para optimizar la estimación del funcional de rugosidad $R(f'')$ sin imponer asunciones previas. Al exigir un $h$ más estricto, Sheather-Jones respeta en mayor medida la intensa concentración local de los rendimientos diarios del mercado, reduciendo el sesgo asintótico en la cima de la distribución.
+
+## Análisis Dinámico y Detección de Regímenes de Mercado
+
+Una de las motivaciones principales para la adopción de métodos no paramétricos es su capacidad para identificar variaciones dinámicas en la densidad de los rendimientos, comportamientos que un modelo paramétrico estático es incapaz de revelar. Los mercados financieros alternan entre regímenes de baja volatilidad (calma) y regímenes de alta volatilidad (crisis). 
+
+Para ilustrar este fenómeno, dividiremos la muestra en dos periodos históricos antagónicos: el año 2008 (epicentro de la Gran Crisis Financiera) y el año 2017 (un ejercicio caracterizado por una tendencia alcista sostenida y una volatilidad históricamente baja).
+
+```{r analisis-regimenes, fig.cap="Comparativa de la distribución de rendimientos en dos regímenes de mercado: Crisis (2008) vs Calma (2017).", fig.align='center', out.width="85%", warning=FALSE}
+library(dplyr)
+library(ggplot2)
+
+sp500_2008 <- sp500_plot %>% filter(date >= "2008-01-01" & date <= "2008-12-31")
+sp500_2017 <- sp500_plot %>% filter(date >= "2017-01-01" & date <= "2017-12-31")
+
+m_08 <- mean(sp500_2008$daily_return); sd_08 <- sd(sp500_2008$daily_return)
+m_17 <- mean(sp500_2017$daily_return); sd_17 <- sd(sp500_2017$daily_return)
+
+plot_08 <- ggplot(sp500_2008, aes(x = daily_return)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 50, fill = "#e74c3c", 
+  alpha = 0.5) + stat_function(fun = dnorm, args = list(mean = m_08, sd = sd_08), 
+                color = "red", linetype = "dashed", linewidth = 1) +
+  geom_density(color = "darkred", linewidth = 1) +
+  coord_cartesian(xlim = c(-0.10, 0.10)) + 
+  theme_minimal() +
+  labs(title = "Régimen de Crisis: Alta Volatilidad (2008)", x = "", y = "Densidad")
+
+plot_17 <- ggplot(sp500_2017, aes(x = daily_return)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 50, fill = "#3498db", 
+  alpha = 0.5) +
+  stat_function(fun = dnorm, args = list(mean = m_17, sd = sd_17), 
+                color = "blue", linetype = "dashed", linewidth = 1) +
+  geom_density(color = "darkblue", linewidth = 1) +
+  coord_cartesian(xlim = c(-0.10, 0.10)) + 
+  theme_minimal() +
+  labs(title = "Régimen de Calma: Baja Volatilidad (2017)", 
+  x = "Rendimiento Diario", y = "Densidad")
+
+plot_08
+plot_17
+```
+
+### Consecuencias de la mala especificación del modelo
+
+Los gráficos anteriores cristalizan el riesgo de depender de supuestos paramétricos estáticos. En el año 2017, la baja varianza provoca que la distribución se concentre intensamente alrededor del cero. La curva Normal (azul discontinua) intenta acomodarse a esta baja dispersión, pero el KDE (azul oscuro) revela que el pico real es mucho más agudo, exhibiendo una fuerte leptocurtosis.
+
+No obstante, el colapso analítico de la Normal se produce durante la crisis de 2008. La explosión de la varianza fuerza a la campana de Gauss (roja discontinua) a ensancharse simétricamente. Al hacerlo, el modelo asume que existió una enorme probabilidad de obtener rendimientos positivos extremos, algo que no ocurrió empíricamente. Por el contrario, el estimador KDE (rojo oscuro) se adapta a la verdadera asimetría del mercado guiado exclusivamente por los datos, perfilando un pronunciado "hombro" en la cola izquierda que captura la acumulación de severas pérdidas diarias.
+
+## Implicaciones Financieras: Value at Risk (VaR)
+
+La evidencia de leptocurtosis y asimetría negativa desarrollada en las secciones anteriores trasciende el interés puramente estadístico; sus implicaciones en la gestión de riesgos financieros son críticas. La métrica de riesgo de mercado por excelencia es el *Value at Risk* (VaR), el cual cuantifica la pérdida máxima esperada de un activo durante un horizonte temporal determinado, dado un nivel de confianza $(1 - \alpha)$.
+
+Matemáticamente, el $VaR_{\alpha}$ se define como el cuantil $\alpha$ de la distribución de los rendimientos. Si asumimos un modelo paramétrico gaussiano, el VaR se obtiene analíticamente mediante la inversa de la función de distribución Normal. Sin embargo, en el enfoque no paramétrico, el VaR se estima hallando el cuantil empírico sobre la función de distribución acumulada generada por la curva KDE:
+$$\int_{-\infty}^{VaR_{\alpha}^{KDE}} \hat{f}_h(x) dx = \alpha$$
+
+A continuación, calcularemos el VaR al 95% ($\alpha = 0.05$) y al 99% ($\alpha = 0.01$) bajo ambos enfoques bajo el caso de la crisis de 2008.
+
+```{r calculo-var, warning=FALSE, message=FALSE}
+alpha_95 <- 0.05
+alpha_99 <- 0.01
+
+mu <- mean(sp500_2008$daily_return)
+sigma <- sd(sp500_2008$daily_return)
+var_norm_95 <- qnorm(alpha_95, mean = mu, sd = sigma)
+var_norm_99 <- qnorm(alpha_99, mean = mu, sd = sigma)
+kde_dens <- density(sp500_2008$daily_return, bw = "SJ")
+dx <- diff(kde_dens$x[1:2])
+cdf_kde <- cumsum(kde_dens$y) * dx
+var_kde_95 <- kde_dens$x[which.min(abs(cdf_kde - alpha_95))]
+var_kde_99 <- kde_dens$x[which.min(abs(cdf_kde - alpha_99))]
+
+resultados_var <- data.frame(
+  Confianza = c("95%", "99%"),
+  VaR_Normal = paste0(round(c(var_norm_95, var_norm_99) * 100, 2), "%"),
+  VaR_KDE = paste0(round(c(var_kde_95, var_kde_99) * 100, 2), "%")
+)
+knitr::kable(resultados_var, align = 'c', 
+             caption = "Comparativa de Pérdida Diaria Máxima (VaR)")
+```
+
+Para cristalizar la magnitud de este riesgo oculto, ilustramos gráficamente el VaR al 99%, superponiendo los umbrales de pérdida sobre la cola izquierda de la distribución.
+
+```{r plot-var, fig.cap="Umbrales de Value at Risk al 99\\%. El modelo Normal subestima la pérdida máxima frente a la realidad topológica capturada por el KDE.", fig.align='center', out.width="85%", warning=FALSE}
+ggplot(sp500_plot, aes(x = daily_return)) +
+  geom_density(color = "darkgreen", bw = "SJ", linewidth = 1) +
+  stat_function(fun = dnorm, args = list(mean = mu, sd = sigma), 
+                color = "black", linetype = "dashed", linewidth = 1) +
+  geom_vline(xintercept = var_norm_99, color = "red", 
+  linetype = "dashed", linewidth = 1.2) +
+  geom_vline(xintercept = var_kde_99, color = "darkgreen", linewidth = 1.2) +
+  annotate("text", x = var_norm_99 + 0.002, y = 5, label = "VaR Normal", 
+           color = "red", angle = 90, vjust = 1) +
+  annotate("text", x = var_kde_99 - 0.002, y = 5, label = "VaR KDE", 
+           color = "darkgreen", angle = 90, vjust = 0) +
+  coord_cartesian(xlim = c(-0.1, 0)) +
+  theme_minimal() +
+  labs(title = "Subestimación del Riesgo de Cola (VaR 99%)",
+       x = "Rendimiento Diario", y = "Densidad")
+```
+
+### Nota sobre las limitaciones del enfoque incondicional
+
+Resulta imperativo señalar una limitación metodológica de este cálculo. El VaR estimado en esta sección posee carácter *incondicional*; es decir, se ha calculado sobre la distribución estática de toda la serie histórica, asumiendo implícitamente una volatilidad constante. Tal y como se demostró en el análisis dinámico de regímenes, la varianza de los mercados es heterocedástica (cambia con el tiempo). En la práctica econométrica avanzada, esta estimación se refinaría calculando un *VaR Condicional*, empleando modelos de tipo GARCH para capturar la volatilidad diaria y aplicando el estimador KDE exclusivamente sobre los residuos estandarizados. No obstante, a efectos de ilustrar el sesgo de especificación de la distribución Normal frente a estimadores guiados por los datos, el cálculo incondicional resulta suficiente y revelador.
+
+### Conclusiones de Riesgo
+
+Los resultados numéricos y la inspección visual revelan el peligro analítico de asumir la normalidad en la gestión de carteras. Para un nivel de confianza del 99%, el modelo paramétrico gaussiano dictamina que la pérdida diaria máxima no excederá aproximadamente un $6.16\%$. 
+
+Sin embargo, el estimador no paramétrico de densidad tipo núcleo, al incorporar toda la información histórica de las colas pesadas sin sesgos estructurales, sitúa el verdadero umbral de riesgo al 99% en torno a una pérdida del $8.51\%$. Esta diferencia no es meramente académica: en un entorno financiero real, utilizar el modelo Normal habría dejado a la institución sistemáticamente descapitalizada y expuesta a la ruina durante las crisis severas de mercado. La adopción del KDE resulta, por consiguiente, un imperativo para una medición prudente y rigurosa del riesgo extremo.
+
+## Análisis Multivariante: Estructura de Dependencia (S&P 500 vs VIX)
+
+Como se expuso en el [Capítulo 6](#capitulo6), la estimación de densidad no paramétrica despliega todo su potencial analítico en espacios multidimensionales, donde permite capturar interacciones complejas sin asumir correlaciones lineales gaussianas. Para ilustrar la aplicación empírica del estimador multivariante, analizaremos la distribución conjunta de los rendimientos del S&P 500 frente a los cambios en el Índice de Volatilidad CBOE (VIX), conocido popularmente como el "índice del miedo".
+
+Procedemos a extraer la serie histórica del VIX, sincronizarla con nuestro marco de datos del S&P 500 y estimar la densidad bivariante $\hat{f}_{\mathbf{H}}(x, y)$.
+
+```{r estimacion-bivariante, fig.cap="Densidad no paramétrica bivariante (S\\&P 500 vs VIX). Las curvas de nivel elípticas y rotadas evidencian la fuerte estructura de dependencia negativa.", fig.align='center', out.width="90%", warning=FALSE, message=FALSE}
+vix_data <- tq_get("^VIX", get = "stock.prices", from = "1980-01-01") %>%
+  arrange(date) %>%
+  mutate(vix_return = (close / lag(close)) - 1) %>%
+  select(date, vix_return) %>%
+  na.omit()
+```
+Visualizamos primero los datos del VIX para hacernos una idea de su comportamiento.
+```{r vix}
+head(vix_data)
+```
+
+Ahora continuamos con nuestra estimación bivariante.
+
+```{r plot-bivariante, warning=FALSE, message=FALSE}
+multi_data <- inner_join(sp500_plot, vix_data, by = "date")
+ggplot(multi_data, aes(x = daily_return, y = vix_return)) +
+  stat_density_2d(aes(fill = after_stat(level)), 
+                  geom = "polygon", color = "white", linewidth = 0.2, bins = 15) +
+  scale_fill_viridis_c(option = "plasma") +
+  coord_cartesian(xlim = c(-0.05, 0.05), ylim = c(-0.2, 0.2)) +
+  theme_minimal() +
+  labs(x = "Rendimientos del S&P 500",
+       y = "Variación Porcentual del VIX",
+       fill = "Densidad Conjunta") +
+  theme(legend.position = "right")
+```
+
+### Interpretación Topológica y el Papel de la Matriz $\mathbf{H}$
+
+El mapa de contornos resultante proporciona una caracterización visual exhaustiva de la dependencia estocástica entre ambos activos. La concentración máxima de probabilidad (región amarilla central) se localiza en los días de mercado estable, donde tanto los rendimientos del S&P 500 como las variaciones del VIX son cercanos a cero.
+
+Sin embargo, la estructura más relevante radica en la morfología general de las curvas de nivel. Observamos que los contornos conforman elipsoides fuertemente estirados y rotados hacia el segundo y cuarto cuadrante del plano cartesiano, evidenciando una estricta correlación negativa: caídas severas en el mercado de renta variable están acopladas con incrementos explosivos en la volatilidad. 
+
+Este comportamiento empírico valida las implicaciones teóricas derivadas en la Sección \ref{sec: tiposdeh}. Si hubiésemos restringido el estimador a una matriz de ancho de banda Diagonal ($\mathbf{H} \in \mathcal{H}_D$), los ejes de las elipses se habrían visto forzados a permanecer paralelos a los ejes coordenados, asumiendo implícitamente independencia local y distorsionando por completo la evaluación del riesgo conjunto. La capacidad geométrica de capturar esta "cresta" oblicua de probabilidad justifica la necesidad ineludible de emplear Matrices Completas sin restricciones ($\mathbf{H} \in \mathcal{H}_F$) en el análisis financiero multivariante.
+
+\newpage
+
+# Conclusiones y Líneas Futuras {#capitulo8}
+
+La presente investigación ha realizado un recorrido exhaustivo por la teoría y práctica de la estimación de densidad tipo núcleo (KDE), partiendo de sus fundamentos asintóticos hasta su validación en el complejo escenario de los mercados financieros. A continuación, se sintetizan los hallazgos principales y se discute su relevancia en el marco de la estadística aplicada.
+
+## Síntesis de Resultados y Relevancia Metodológica
+
+El desarrollo de este trabajo ha permitido contrastar la robustez del enfoque no paramétrico frente a la rigidez de los modelos clásicos. De los resultados obtenidos, se desprenden las siguientes conclusiones fundamentales:
+
+1. **Superación del Paradigma Paramétrico:** El análisis empírico del índice S&P 500 en el [Capítulo 7](#capitulo7) ha validado la hipótesis inicial: la distribución de los rendimientos financieros no es normal. Mientras que el modelo gaussiano subestima sistemáticamente la frecuencia de eventos extremos y la agudeza del pico central, el estimador KDE logra capturar la leptocurtosis y la asimetría negativa de forma orgánica. Esto demuestra que la flexibilidad analítica del núcleo no es solo una ventaja teórica, sino una necesidad técnica para una modelización financiera fidedigna.
+
+2. **Supremacía de la Selección de Ancho de Banda:** La comparación entre selectores en la aplicación práctica ha ratificado la importancia crítica del ancho de banda ($h$). Si bien las reglas de referencia de Silverman proporcionan una aproximación sencilla mediante el uso del IQR, el algoritmo de Sheather-Jones (SJ) se ha revelado como la herramienta más precisa. Al optimizar el funcional de rugosidad $R(f'')$ sin imponer asunciones de normalidad en los niveles críticos, el método SJ permite que la propia muestra dicte el nivel de suavizado óptimo, minimizando el error AMISE de manera efectiva incluso en presencia de estructuras locales complejas.
+
+3. **Impacto en la Gestión de Riesgos:** Quizás la conclusión más relevante desde el punto de vista aplicado es la divergencia en el cálculo del *Value at Risk* (VaR). Hemos demostrado que confiar en el supuesto de normalidad conduce a una infravaloración severa de las pérdidas potenciales durante periodos de crisis. El enfoque basado en KDE proporciona umbrales de riesgo significativamente más conservadores y ajustados a la realidad de las "colas pesadas", estableciéndose como un estándar superior para la gestión financiera.
+
+## Futuras Líneas de Investigación
+
+Si bien los resultados obtenidos validan la eficacia empírica del estimador de densidad tipo núcleo, la flexibilidad inherente a los métodos no paramétricos abre un abanico de posibilidades para perfeccionar y expandir este análisis. A partir de las limitaciones y los desafíos analíticos identificados a lo largo de la memoria, se proponen las siguientes vías de investigación futura:
+
+1. **Estimación de Riesgo Condicional (Enfoque GARCH-KDE):**
+   Tal y como se advirtió en el análisis del [Capítulo 7](#capitulo7), el cálculo del VaR desarrollado en esta aplicación posee un carácter incondicional. Puesto que las series financieras exhiben una fuerte heterocedasticidad temporal, una extensión natural y de enorme valor econométrico consiste en implementar una estrategia secuencial en dos etapas. En primer lugar, se aplicaría un modelo paramétrico de la familia GARCH para estimar y filtrar la varianza condicional diaria; posteriormente, se emplearía el estimador KDE exclusivamente sobre los residuos estandarizados de dicho modelo. Esta hibridación permitiría calcular un *VaR Condicional* dinámico, combinando la memoria estocástica de las series temporales con la precisión topológica del núcleo para la innovación subyacente.
+
+2. **KDE Adaptativo (Ancho de Banda Variable):**
+   Este trabajo se ha centrado en el estudio y optimización de un parámetro de suavizado global constante ($h_{AMISE}$). Sin embargo, en distribuciones que presentan simultáneamente picos agudos y colas muy pesadas, un ancho de banda global impone un compromiso analítico estricto: el valor que previene el ruido en las colas suele sobresuavizar el centro. La implementación de estimadores de núcleo con ancho de banda adaptativo o local, donde el parámetro de escala varía para cada observación empírica en función de una estimación piloto de la densidad en dicha región, supondría un salto cualitativo significativo para modelar los extremos financieros con aún mayor nitidez.
+
+3. **Teoría de Cópulas frente a la Maldición de la Dimensionalidad:**
+   En el [Capítulo 6](#capitulo6) se demostró matemáticamente el colapso de la tasa de convergencia asintótica del estimador al aumentar el número de variables. Para sortear esta "maldición de la dimensionalidad" en el análisis de carteras compuestas por múltiples activos, una línea de investigación frontera radica en la integración del KDE con la Teoría de Cópulas. Amparándose en el Teorema de Sklar, este enfoque permitiría estimar las distribuciones marginales univariantes de cada activo mediante KDE (donde el estimador goza de gran eficiencia) y modelar la estructura de dependencia estocástica conjunta a través de una función cópula, eludiendo la ineficiencia de aplicar un núcleo de forma directa en un espacio euclídeo de alta dimensión.
+
+En definitiva, la estimación de densidad tipo núcleo trasciende su papel como simple herramienta exploratoria para consolidarse como un pilar inferencial indispensable. Al delegar en los propios datos la revelación de su estructura, el KDE dota al analista de la flexibilidad necesaria para enfrentarse a la verdadera complejidad de los fenómenos estocásticos contemporáneos.
+
+\newpage
+
+
+# Anexo: Código en R {#anexo}
+
+A continuación, se detalla el código en lenguaje R utilizado a lo largo de este Trabajo Fin de Máster para el procesamiento de los datos, la estimación no paramétrica y la generación de los gráficos y resultados presentados.
+
+```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+```
+
+\newpage
+
+# Bibliografía
