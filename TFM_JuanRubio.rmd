@@ -1842,6 +1842,7 @@ En dicho repositorio se encuentra disponible tanto el documento dinámico origin
 Puede consultar y descargar todo el material en el siguiente enlace:
 
 [Repositorio en GitHub - Código del TFM](https://github.com/juanrubiocobeta/TFM_UGR_JuanRubio)
+
 ```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
 ```
 
