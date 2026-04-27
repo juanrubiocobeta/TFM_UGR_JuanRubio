@@ -1835,6 +1835,13 @@ En definitiva, la estimación de densidad tipo núcleo trasciende su papel como 
 
 A continuación, se detalla el código en lenguaje R utilizado a lo largo de este Trabajo Fin de Máster para el procesamiento de los datos, la estimación no paramétrica y la generación de los gráficos y resultados presentados.
 
+Para garantizar la total transparencia y la reproducibilidad de los análisis estadísticos presentados en este Trabajo de Fin de Máster, el código fuente íntegro ha sido alojado en un repositorio público. 
+
+En dicho repositorio se encuentra disponible tanto el documento dinámico original (`.Rmd`), como el script limpio de ejecución (`.R`). 
+
+Puede consultar y descargar todo el material en el siguiente enlace:
+
+[Repositorio en GitHub - Código del TFM](https://github.com/juanrubiocobeta/TFM_UGR_JuanRubio)
 ```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
 ```
 
