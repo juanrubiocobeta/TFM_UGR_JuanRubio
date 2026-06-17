@@ -86,7 +86,7 @@ par(mfrow=c(1, 1))
 
 
 ## ----ilustracion-sesgo, fig.cap="Efecto geométrico del sesgo: aplanamiento de modas y relleno de valles.", fig.align='center', out.width="85%", fig.height=4.5, fig.width=8----
-x <- seq(-4, 4, length.out=1000)
+x <- seq(-4, 4, length.out=1000) 
 fx <- 0.5 * dnorm(x, mean=-1.5, sd=0.6) + 0.5 * dnorm(x, mean=1.5, sd=0.6)
 h <- 0.6
 efx <- 0.5 * dnorm(x, mean=-1.5, sd=sqrt(0.6^2 + h^2)) + 0.5 * 
